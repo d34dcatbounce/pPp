@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>ASCII Cursor | DFA Archive</title>
+    <title>Negative Space Cursor | DFA Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #ffffff; /* 흰색 배경 */
-            cursor: none; /* 시스템 커서 완전 숨김 */
+            background-color: #000000; /* 완전한 어둠 */
+            cursor: none; /* 시스템 커서 숨김 */
         }
 
         /* 아스키 텍스트가 렌더링될 메인 그리드 */
@@ -19,28 +19,31 @@
             width: 100vw; height: 100vh;
             margin: 0; padding: 0;
             
-            /* 타자기에 쓰이는 고정폭 폰트 적용 (정렬을 위해 필수) */
+            /* 타자기 폰트 (정렬 필수) */
             font-family: 'Courier New', Courier, monospace;
             font-size: 14px;
-            line-height: 14px; /* 글자 간격 세밀하게 조정 */
+            line-height: 14px;
             letter-spacing: 2px;
             
-            color: #000000; /* 검은색 글자 */
-            white-space: pre; /* 줄바꿈 및 띄어쓰기 그대로 유지 */
-            pointer-events: none; /* 드래그 방지 */
+            color: #4b5563; /* 어두운 회색 (배경의 빽빽한 느낌) */
+            white-space: pre; 
+            pointer-events: none; 
             user-select: none;
         }
 
-        /* UI 오버레이 (텍스트 그리드와 구별되도록 약간의 투명도 부여) */
+        /* UI 오버레이 */
         #ui-layer {
             position: absolute;
             top: 32px; left: 32px;
             font-family: 'Courier New', Courier, monospace;
             font-size: 12px;
             letter-spacing: 0.15em;
-            color: #4b5563; /* 회색 */
+            color: #9ca3af;
             pointer-events: none;
             z-index: 50;
+            background-color: rgba(0, 0, 0, 0.7); /* 글자 위에 떠있어도 잘 보이게 패딩 */
+            padding: 10px;
+            border: 1px solid #374151;
         }
     </style>
 </head>
@@ -48,8 +51,8 @@
 
     <div id="ui-layer">
         [ 088 : ASCII_CURSOR ]<br>
-        RENDER_MODE: REALTIME_TEXT_OVERRIDE<br>
-        <span id="coord" class="text-black font-bold">COORD: [0, 0]</span>
+        RENDER_MODE: NEGATIVE_SPACE<br>
+        <span id="coord" class="text-cyan-400 font-bold">COORD: [0, 0]</span>
     </div>
 
     <pre id="grid"></pre>
@@ -60,25 +63,27 @@
 
         let charW, charH;
         let cols, rows;
-        let baseGrid = []; // 기본 배경 아스키 지형을 담을 2차원 배열
+        let baseGrid = []; // 기본 배경을 담을 2차원 배열
 
-        // 🎯 커서 역할을 할 아스키 아트 형태 (블록 문자로 뚜렷하게 표현)
-        // 뒤에 띄어쓰기(공백)를 넣어 배경 도면 선을 지우면서 이동하게 함
-        const cursorArt = [
-            "◢         ",
-            "██◣       ",
-            "███◣      ",
-            "████◣     ",
-            "█████◣    ",
-            "██████◣   ",
-            "███▀▀▀▀   ",
-            "███       ",
-            "█ █◣      ",
-            "▀  █      ",
-            "   ▀      "
+        // 🎯 빽빽한 배경을 구성할 문자들 (1과 0, 기호들 위주)
+        const charSet = ['0', '1', 'H', 'X', 'Z', '#', '@', '%', '+', '=', ':', '.', '-', ' '];
+
+        // 🎯 커서의 모양을 결정하는 '마스크' (X로 표시된 부분이 여백이 됨)
+        const cursorMask = [
+            "XX        ",
+            "XXXX      ",
+            "XXXXXX    ",
+            "XXXXXXXX  ",
+            "XXXXXXXXXX",
+            "XXXXXXXXXX",
+            "XXXXXX    ",
+            "XX  XX    ",
+            "    XX    ",
+            "      XX  ",
+            "      XX  "
         ];
 
-        // 1. 초기 세팅: 브라우저 환경에 맞는 정확한 글자 크기(폭) 측정
+        // 브라우저 폰트 폭/높이 측정
         function init() {
             const span = document.createElement('span');
             span.style.fontFamily = "'Courier New', Courier, monospace";
@@ -87,89 +92,76 @@
             span.innerText = 'X';
             document.body.appendChild(span);
             charW = span.getBoundingClientRect().width;
-            charH = 14; // CSS의 line-height와 동일하게
+            charH = 14; 
             document.body.removeChild(span);
 
             resize();
         }
 
-        // 2. 화면 크기에 맞게 그리드(행/열) 생성 및 배경 도면 그리기
+        // 화면 크기에 맞게 그리드 세팅
         function resize() {
             cols = Math.floor(window.innerWidth / charW);
             rows = Math.floor(window.innerHeight / charH) + 1;
             
+            // 빽빽한 랜덤 텍스트로 배경 채우기
             baseGrid = [];
             for (let r = 0; r < rows; r++) {
                 let row = [];
                 for (let c = 0; c < cols; c++) {
-                    // 배경에 아카이브 도면 같은 선과 기호 생성
-                    if (r % 6 === 0 && c % 16 === 0) row.push('+');
-                    else if (r % 6 === 0) row.push('-');
-                    else if (c % 16 === 0) row.push('|');
-                    else {
-                        // 중간중간 노이즈성 데이터 삽입
-                        const rand = Math.random();
-                        if (rand < 0.01) row.push('.');
-                        else if (rand < 0.005) row.push('x');
-                        else row.push(' ');
-                    }
+                    const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
+                    row.push(randomChar);
                 }
                 baseGrid.push(row);
             }
-            // 초기 렌더링 (커서는 안 보이게 화면 밖 좌표 전달)
             render(-100, -100);
         }
 
-        // 3. 🎯 [핵심] 실시간 텍스트 교체 렌더링 로직
+        // 🎯 핵심 렌더링 로직
         function render(mouseX, mouseY) {
-            // 마우스 픽셀 좌표를 텍스트 행/열 좌표로 변환
             let cX = Math.floor(mouseX / charW);
-            let cY = Math.floor(mouseY / charH) - 1; // 커서 끝점을 마우스에 맞추기 위한 미세 보정
+            let cY = Math.floor(mouseY / charH) - 1;
 
             let output = [];
             
-            // 전체 그리드를 돌면서 글자 조립
             for (let r = 0; r < rows; r++) {
                 let rowStr = '';
                 for (let c = 0; c < cols; c++) {
-                    // 현재 위치가 아스키 커서 아트의 범위 안인지 확인
                     let curR = r - cY;
                     let curC = c - cX;
                     
-                    if (curR >= 0 && curR < cursorArt.length && curC >= 0 && curC < cursorArt[0].length) {
-                        // 커서 형태에 해당하는 글자로 교체 (Override)
-                        rowStr += cursorArt[curR][curC];
+                    // 현재 문자가 마우스(커서 마스크) 위치에 해당하는지 검사
+                    if (curR >= 0 && curR < cursorMask.length && curC >= 0 && curC < cursorMask[0].length) {
+                        if (cursorMask[curR][curC] === 'X') {
+                            // 마스크에 'X'라고 표시된 곳은 무조건 "공백(여백)"으로 치환
+                            rowStr += ' ';
+                        } else {
+                            // 마스크 범위 안이지만 'X'가 아닌 곳은 배경 글자 그대로
+                            rowStr += baseGrid[r][c];
+                        }
                     } else {
-                        // 범위 밖이라면 기본 배경 도면 출력
+                        // 커서 범위 밖은 배경 글자
                         rowStr += baseGrid[r][c];
                     }
                 }
                 output.push(rowStr);
             }
 
-            // 완성된 수만 개의 글자를 화면에 단 한 번에 업데이트 (성능 최적화)
+            // 완성된 텍스트 덩어리를 통째로 화면에 출력
             gridEl.textContent = output.join('\n');
             coordEl.textContent = `COORD: [${cX}, ${cY}]`;
         }
 
-        // 4. 마우스 이동 추적 (requestAnimationFrame으로 60프레임 최적화)
         let isUpdating = false;
-        let mX = -100, mY = -100;
-        
         document.addEventListener('mousemove', (e) => {
-            mX = e.clientX;
-            mY = e.clientY;
-            
             if (!isUpdating) {
                 requestAnimationFrame(() => {
-                    render(mX, mY);
+                    render(e.clientX, e.clientY);
                     isUpdating = false;
                 });
                 isUpdating = true;
             }
         });
 
-        // 이벤트 바인딩 및 시작
         window.addEventListener('resize', resize);
         init();
     </script>
