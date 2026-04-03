@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Sonar Reveal | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000; /* 완전한 암흑 */
+            font-family: 'Courier New', Courier, monospace;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 32px; left: 32px;
+            color: #4b5563;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer" class="select-none">
+        <div class="text-xs tracking-[0.2em] mb-1">[ 031 : SONAR_REVEAL ]</div>
+        <div class="text-[10px] tracking-widest opacity-50 uppercase">Status: Active_Scanning</div>
+        <div id="status-text" class="text-cyan-500 text-xs mt-4 font-bold tracking-tighter">PULSE_READY</div>
+    </div>
+
+    <canvas id="sonar-canvas"></canvas>
+
+    <div class="absolute bottom-8 w-full text-center text-[10px] text-gray-700 tracking-[0.3em] uppercase pointer-events-none">
+        Move mouse to emit sonar pulses. Discover the hidden architecture.
+    </div>
+
+    <script>
+        const canvas = document.getElementById('sonar-canvas');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('status-text');
+
+        let width, height;
+        let ripples = []; // 퍼져나가는 파동 배열
+        let mapLines = []; // 숨겨진 지형 선분 배열
+
+        // 🎯 1. 숨겨진 아카이브 설계도 생성 (랜덤 선분들)
+        function generateHiddenMap() {
+            mapLines = [];
+            const gridSize = 100;
+            
+            // 격자 기반의 복잡한 설계도 생성
+            for (let x = 0; r = 0; x < width; x += gridSize) {
+                for (let y = 0; y < height; y += gridSize) {
+                    if (Math.random() > 0.4) {
+                        // 가로 선
+                        mapLines.push({ x1: x, y1: y, x2: x + gridSize, y2: y });
+                    }
+                    if (Math.random() > 0.4) {
+                        // 세로 선
+                        mapLines.push({ x1: x, y1: y, x2: x, y2: y + gridSize });
+                    }
+                    // 대각선/노이즈 선 추가
+                    if (Math.random() > 0.8) {
+                        mapLines.push({ x1: x, y1: y, x2: x + gridSize/2, y2: y + gridSize/2 });
+                    }
+                }
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            generateHiddenMap();
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 🎯 2. 파동(Ripple) 클래스
+        class Ripple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.r = 0; // 초기 반지름
+                this.maxR = 400; // 최대 도달 거리
+                this.speed = 4; // 확산 속도
+                this.life = 1.0; // 투명도/수명
+            }
+
+            update() {
+                this.r += this.speed;
+                this.life -= 0.01;
+            }
+
+            isDead() {
+                return this.life <= 0 || this.r >= this.maxR;
+            }
+        }
+
+        // 마우스 이동 시 파동 생성 (성능을 위해 약간의 간격 조절)
+        let lastMove = 0;
+        canvas.addEventListener('mousemove', (e) => {
+            const now = Date.now();
+            if (now - lastMove > 100) { // 0.1초마다 파동 생성
+                ripples.push(new Ripple(e.clientX, e.clientY));
+                lastMove = now;
+                statusText.innerText = `PULSING_AT: [${e.clientX}, ${e.clientY}]`;
+            }
+        });
+
+        // 🎯 3. 메인 루프
+        function animate() {
+            // 잔상을 남기며 지우기 (Phosphor 효과)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            // 파동 업데이트 및 충돌 검사
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const ripple = ripples[i];
+                ripple.update();
+
+                if (ripple.isDead()) {
+                    ripples.splice(i, 1);
+                    continue;
+                }
+
+                // 🎯 4. [핵심] 파동과 숨겨진 선분의 충돌 판정
+                ctx.strokeStyle = `rgba(6, 182, 212, ${ripple.life * 0.8})`; // 청록색
+                ctx.lineWidth = 2;
+
+                mapLines.forEach(line => {
+                    // 선분의 양 끝점과 파동 중심 사이의 거리
+                    const d1 = Math.hypot(line.x1 - ripple.x, line.y1 - ripple.y);
+                    const d2 = Math.hypot(line.x2 - ripple.x, line.y2 - ripple.y);
+
+                    // 파동의 반지름(r)이 선분의 범위 안에 들어왔을 때만 그 선분을 그림
+                    // 링의 두께(약 10px) 안에 선분이 걸치는지 확인
+                    const minD = Math.min(d1, d2);
+                    const maxD = Math.max(d1, d2);
+
+                    if (ripple.r >= minD - 20 && ripple.r <= maxD + 20) {
+                        // 파동이 지나가는 찰나에만 선분을 그림
+                        ctx.beginPath();
+                        ctx.moveTo(line.x1, line.y1);
+                        ctx.lineTo(line.x2, line.y2);
+                        ctx.stroke();
+
+                        // 충돌 지점에 작은 스파크 추가
+                        if (Math.abs(ripple.r - minD) < 5) {
+                            ctx.fillStyle = `rgba(255, 255, 255, ${ripple.life})`;
+                            ctx.fillRect(line.x1 - 1, line.y1 - 1, 2, 2);
+                        }
+                    }
+                });
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
