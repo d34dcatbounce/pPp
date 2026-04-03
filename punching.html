@@ -11,7 +11,7 @@
             background-color: #000;
         }
 
-        /* 1. [가장 아래] 윈도우 배경 (약간 어둡게 처리하여 대비 상승) */
+        /* 1. 가장 밑에 깔리는 윈도우 배경 (어둡게 처리) */
         #windows-background {
             position: fixed;
             top: 0; left: 0;
@@ -20,17 +20,16 @@
             background-size: cover;
             background-position: center;
             z-index: 0;
-            /* 🔥 [수정] 배경을 30% 어둡게 하여 구멍과 대비시킴 */
             filter: brightness(0.7); 
         }
 
-        /* 2. 전경 스크린과 구멍을 담당할 SVG */
+        /* 2. 전경 스크린 SVG */
         #svg-layer {
             position: fixed;
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 10;
-            cursor: cell; /* 정밀한 타격감을 위한 십자선 커서 */
+            cursor: cell;
         }
 
         /* 3. UI 레이어 */
@@ -49,9 +48,7 @@
         
         .clickable { pointer-events: auto; }
 
-        /* 🔥 [수정] 흔들림 애니메이션 삭제됨 */
-
-        /* 펀칭 애니메이션 (구멍이 생성되는 미세한 효과) */
+        /* 펀칭 애니메이션 (크기만 변경) */
         @keyframes punchPop {
             0% { transform: scale(0); opacity: 0; }
             80% { transform: scale(1.1); opacity: 1; }
@@ -97,7 +94,6 @@
         let currentPunches = 0;
         const maxPunches = 64;
 
-        // 클릭 이벤트
         svgLayer.addEventListener('click', function(event) {
             if (currentPunches >= maxPunches) {
                 alert('ARCHIVE IS FULL. RESET SYSTEM TO CONTINUE.');
@@ -107,37 +103,37 @@
             const x = event.clientX;
             const y = event.clientY;
 
-            // 1. 그룹(<g>) 생성 및 마우스 위치로 이동
-            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-            g.setAttribute("transform", `translate(${x}, ${y})`);
-            g.setAttribute("class", "punch-anim"); // 팝업 애니메이션 적용
+            // 🎯 [핵심 수정] 위치를 잡아주는 외부 그룹 생성
+            const wrapper = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            wrapper.setAttribute("transform", `translate(${x}, ${y})`);
 
-            // 2. 완벽한 비율의 하트 패스 (가장자리 디테일을 위해 <path> 사용)
+            // 🎯 크기 애니메이션만 담당하는 내부 그룹 생성
+            const animGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            animGroup.setAttribute("class", "punch-anim");
+
+            // 완벽한 하트
             const heartHole = document.createElementNS("http://www.w3.org/2000/svg", "path");
             heartHole.setAttribute("d", "M 0 -15 C -30 -45, -60 5, 0 40 C 60 5, 30 -45, 0 -15 Z");
-            heartHole.setAttribute("fill", "black"); // 검은색으로 뚫음
+            heartHole.setAttribute("fill", "black");
 
-            // 🔥 [추가] 종이가 찢어진 듯한 거친 질감 (Roughen Effect)
-            // 하트 가장자리에 미세하고 랜덤한 찢어짐 효과를 주기 위해 스위글(Swiggle) 라인을 덧댐
+            // 찢어진 디테일 하트
             const roughenHole = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            // 기존 하트 데이터에 미세한 불규칙성을 더한 패스
             roughenHole.setAttribute("d", "M 2 -16 C -28 -48, -63 8, 3 38 C 58 3, 33 -47, 2 -16 Z M -3 -14 C -33 -44, -58 2, -3 43 C 63 8, 27 -42, -3 -14 Z");
             roughenHole.setAttribute("fill", "black");
-            roughenHole.setAttribute("fill-opacity", "0.6"); // 찢어진 부분의 불규칙한 투명도
+            roughenHole.setAttribute("fill-opacity", "0.6");
 
-            // 마스크 그룹에 추가
-            g.appendChild(heartHole);
-            g.appendChild(roughenHole); // 거친 가장자리 레이어 추가
-            punchHoles.appendChild(g);
+            // 내부 그룹에 도형 삽입
+            animGroup.appendChild(heartHole);
+            animGroup.appendChild(roughenHole);
+            
+            // 외부 그룹에 내부 그룹 삽입 후 최종 마스크에 적용
+            wrapper.appendChild(animGroup);
+            punchHoles.appendChild(wrapper);
 
-            // 🔥 [수정] 흔들림 애니메이션 삭제됨
-
-            // 상태 업데이트
             currentPunches++;
             punchCount.innerText = `PUNCHED: ${currentPunches} / 64`;
         });
 
-        // 리셋 함수
         function resetPunching() {
             punchHoles.innerHTML = '';
             currentPunches = 0;
