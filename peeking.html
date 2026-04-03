@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>The Keyhole | DFA Archive</title>
+    <title>The Keyhole v2 | DFA Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -13,14 +13,14 @@
             perspective: 1000px; 
         }
 
-        /* 1. 구멍 너머의 배경 (비밀 데이터 공간) */
+        /* 1. [수정] 구멍 너머의 배경 (시력검사 집 그림) */
         #secret-room {
             position: absolute;
             /* 배경이 움직일 여유 공간을 위해 화면보다 크게 설정 (120%) */
             top: -10%; left: -10%;
             width: 120%; height: 120%;
-            /* 엿보이는 대상 이미지 (사이버틱한 패턴 예시) */
-            background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');
+            /* 엿보이는 대상 이미지 (시력검사 집 그림) */
+            background-image: url('https://preview.redd.it/remember-this-during-your-eye-exam-v0-zu881crdbuy41.jpg?width=640&crop=smart&auto=webp&s=cc1a05864f32e2714cf33362cfd88fa242d9e8fe');
             background-size: cover;
             background-position: center;
             
@@ -32,59 +32,53 @@
             justify-content: center;
         }
 
-        /* 배경 안에 있는 텍스트 (시차가 더 잘 느껴지도록 배치) */
-        .secret-data {
-            color: #06b6d4;
-            font-family: monospace;
-            font-size: 2rem;
-            text-shadow: 0 0 20px rgba(6, 182, 212, 0.8);
-            letter-spacing: 0.5em;
-            /* 텍스트는 배경 이미지와 또 다른 깊이감을 가지도록 설정 */
-            transform: translateZ(50px);
-        }
-
-        /* 2. 전경 레이어 (검은 화면 + 뚫린 구멍) */
+        /* 2. [수정] 전경 레이어 (완전 불투명 검은 화면 + 뚫린 구멍) */
         #vignette-hole {
             position: absolute;
             inset: 0;
-            /* CSS 방사형 그라데이션으로 중앙은 투명, 외곽은 까맣게 칠함 */
-            background: radial-gradient(
+            /* 🎯 완전 불투명 검은색 배경 */
+            background-color: #000;
+            /* 🎯 CSS mask로 중앙만 투명하게 뚫음 */
+            -webkit-mask-image: radial-gradient(
                 circle at 50% 50%, 
-                transparent 0%, 
                 transparent 120px, 
-                rgba(0, 0, 0, 0.8) 150px, 
-                #000 200px
+                black 150px
+            );
+            mask-image: radial-gradient(
+                circle at 50% 50%, 
+                transparent 120px, 
+                black 150px
             );
             /* 마우스 이벤트가 이 검은 레이어를 뚫고 지나가도록 설정 */
             pointer-events: none; 
             z-index: 10;
         }
 
-        /* 구멍 테두리에 미세한 빛 번짐 (두께감 표현) */
+        /* 구멍 테두리에 미세한 두께감 표현 (v1 유지) */
         #hole-edge {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 280px; height: 280px;
+            width: 300px; height: 300px;
             border-radius: 50%;
-            box-shadow: inset 0 0 20px rgba(0, 0, 0, 1), 0 0 30px rgba(6, 182, 212, 0.1);
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 1);
             pointer-events: none;
             z-index: 11;
         }
     </style>
 </head>
-<body class="h-screen w-screen relative">
+<body class="h-screen w-screen relative select-none">
 
     <div id="secret-room">
-        <div class="secret-data">RESTRICTED_AREA_404</div>
-    </div>
+        </div>
 
     <div id="vignette-hole"></div>
     <div id="hole-edge"></div>
 
-    <div class="absolute top-8 left-8 text-gray-500 font-mono text-xs tracking-widest z-20">
+    <div class="absolute top-8 left-8 text-gray-700 font-mono text-xs tracking-widest z-20">
         [ 099 : THE_KEYHOLE ]<br>
-        OBSERVE CAREFULLY.
+        MATHEMATICAL_VERIFICATION: COMPLETE<br>
+        STATUS: OBSERVING_SYSTEM
     </div>
 
     <script>
@@ -102,12 +96,12 @@
 
             // 🎯 [핵심] 시차(Parallax) 착시 연산
             // 마우스가 왼쪽으로 가면 배경은 오른쪽으로 이동해야 '엿보기' 각도가 맞음
-            const moveX = mouseX * -40; // 최대 40px 이동
-            const moveY = mouseY * -40; // 최대 40px 이동
+            const moveX = mouseX * -50; // 최대 50px 이동 (v1보다 약간 더 움직여 깊이감 강조)
+            const moveY = mouseY * -50; 
 
             // 입체감을 더하기 위해 살짝 회전(tilt) 효과도 추가
-            const rotateX = mouseY * 5; // 위아래 움직임에 따라 기울어짐
-            const rotateY = mouseX * -5; // 좌우 움직임에 따라 기울어짐
+            const rotateX = mouseY * 4; 
+            const rotateY = mouseX * -4; 
 
             // CSS transform을 통해 배경을 미세하게 이동 및 회전
             room.style.transform = `
