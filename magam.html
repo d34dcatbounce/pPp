@@ -80,7 +80,8 @@
         const gridContainer = document.getElementById('grid-container');
         const hiddenInput = document.getElementById('hidden-input');
         const cells = [];
-        let charBuffer = []; // 최대 5글자를 담을 큐
+        const committedChars = []; // 입력이 완료된 전체 글자를 저장하는 배열
+        let globalCursor = 0; // 현재 입력해야 할 절대 위치 (0 ~ 계속 증가)
 
         // 1. 5x4 그리드 초기화 (20칸 생성)
         for (let i = 0; i < 20; i++) {
@@ -94,60 +95,81 @@
         document.addEventListener('click', () => hiddenInput.focus());
 
         // 3. 한글 조합 및 입력 이벤트 처리
-        // '한 글자 완성'을 감지하기 위해 composition 이벤트를 활용합니다.
+        let isComposing = false;
+
+        hiddenInput.addEventListener('compositionstart', () => {
+            isComposing = true;
+        });
+
         hiddenInput.addEventListener('compositionupdate', (e) => {
             renderGrid(e.data, true);
         });
 
         hiddenInput.addEventListener('compositionend', (e) => {
+            isComposing = false;
             if (e.data) {
-                addToBuffer(e.data);
+                committedChars[globalCursor] = e.data;
+                globalCursor++; // 커서를 다음 칸으로 이동
                 hiddenInput.value = ''; // 입력창 비우기
                 renderGrid('', false);
             }
         });
 
-        // 영문/숫자 등 일반 입력 처리
+        // 영문/숫자 및 복사 붙여넣기 등 일반 입력 처리
         hiddenInput.addEventListener('input', (e) => {
-            // 한글 조합 중이 아닐 때만 실행
-            if (!e.isComposing && e.data) {
-                addToBuffer(e.data);
+            if (!isComposing && hiddenInput.value) {
+                // 한 번에 여러 글자가 들어와도 순서대로 처리 (예: 복붙)
+                for (let char of hiddenInput.value) {
+                    committedChars[globalCursor] = char;
+                    globalCursor++;
+                }
                 hiddenInput.value = '';
                 renderGrid('', false);
             }
         });
 
-        // 4. 버퍼 관리 (6번째 글자가 들어오면 1번째 제거)
-        function addToBuffer(char) {
-            charBuffer.push(char);
-            if (charBuffer.length > 5) {
-                charBuffer.shift(); // 가장 앞의 글자 제거
+        // (보너스) 백스페이스 처리: 오타 수정 시 커서 뒤로 무르기
+        hiddenInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !isComposing) {
+                if (globalCursor > 0) {
+                    globalCursor--;
+                    hiddenInput.value = '';
+                    renderGrid('', false);
+                }
             }
-        }
+        });
 
-        // 5. 그리드 렌더링
+        // 4. 그리드 렌더링 (핵심 로직)
         function renderGrid(currentTyping, isComposing) {
-            // 모든 칸 초기화
+            // 모든 칸을 깨끗하게 비우기
             cells.forEach(cell => {
                 cell.innerText = '';
                 cell.classList.remove('typing');
             });
 
-            // 버퍼에 있는 완성된 글자들 배치
-            charBuffer.forEach((char, index) => {
-                cells[index].innerText = char;
-            });
+            // 화면에 보여줄 글자의 시작점과 끝점 계산 (최대 5글자만 유지)
+            let start, end;
+            if (isComposing) {
+                // 조합 중일 때는 이미 완성된 4글자 + 현재 조합 중인 1글자 = 총 5글자 노출
+                start = Math.max(0, globalCursor - 4);
+                end = globalCursor - 1;
+            } else {
+                // 평소에는 완성된 5글자 노출
+                start = Math.max(0, globalCursor - 5);
+                end = globalCursor - 1;
+            }
 
-            // 현재 조합 중인 글자가 있다면 다음 칸에 표시
-            if (isComposing && charBuffer.length < 5) {
-                const typingCell = cells[charBuffer.length];
-                typingCell.innerText = currentTyping;
-                typingCell.classList.add('typing');
-            } else if (isComposing && charBuffer.length === 5) {
-                // 이미 5글자가 찼는데 또 조합 중이라면 마지막 칸을 교체하는 느낌으로 표시
-                const lastCell = cells[4];
-                lastCell.innerText = currentTyping;
-                lastCell.classList.add('typing');
+            // 계산된 범위의 글자들을 제자리에 렌더링
+            for (let i = start; i <= end; i++) {
+                const cellIndex = i % 20; // 20칸을 넘어가면 다시 0번 칸(첫 줄)으로 덮어씀
+                cells[cellIndex].innerText = committedChars[i];
+            }
+
+            // 현재 조합 중인 글자가 있다면 커서 위치에 표시
+            if (isComposing && currentTyping) {
+                const cellIndex = globalCursor % 20;
+                cells[cellIndex].innerText = currentTyping;
+                cells[cellIndex].classList.add('typing');
             }
         }
 
