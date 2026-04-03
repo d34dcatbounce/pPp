@@ -10,13 +10,11 @@
             overflow: hidden;
             background-color: #050505;
             font-family: 'Courier New', Courier, monospace;
-            color: #d1d5db;
             cursor: crosshair;
         }
 
-        .text-layer {
-            position: fixed;
-            top: 0; left: 0;
+        /* 텍스트 기본 뼈대 (노이즈와 클린 텍스트가 공유할 속성) */
+        .text-base {
             width: 100vw; height: 100vh;
             padding: 40px;
             box-sizing: border-box;
@@ -28,36 +26,28 @@
             pointer-events: none;
         }
 
-        /* 1. 복구된 원본 텍스트 레이어 */
-        #clean-layer {
-            z-index: 1;
-            color: #9ca3af;
-        }
-
-        /* 2. 🎯 [수정됨] 지글거리는 에러 텍스트 레이어 (CSS Only) */
+        /* 1. 🎯 [가장 아래] 미친듯이 떨리는 노이즈 레이어 */
         #noisy-layer {
+            position: fixed;
+            top: 0; left: 0;
             z-index: 10;
-            color: #ef4444; /* 붉은색 에러 텍스트 */
+            color: #ef4444; /* 치명적인 에러 레드 */
             
-            /* SVG 필터 대신 CSS 키프레임 애니메이션으로 압도적인 글리치 구현 */
-            animation: glitch-anim 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite both;
-
-            /* 캡처한 곳을 뚫어줄 마스크는 그대로 유지 */
-            -webkit-mask-image: url(#eraser-mask);
-            mask-image: url(#eraser-mask);
+            /* CSS 키프레임 애니메이션으로 압도적인 글리치 구현 */
+            animation: glitch-anim 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite both;
         }
 
-        /* 🔥 [추가됨] 미친듯이 떨리고 색이 분리되는 CSS 애니메이션 */
+        /* 요동치고 잔상이 분리되는 글리치 효과 */
         @keyframes glitch-anim {
-            0% { transform: translate(0, 0) skew(0deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 0.9; }
-            20% { transform: translate(-4px, 2px) skew(-10deg); text-shadow: -4px 0 #0ff, 4px 0 #f0f; opacity: 1; }
-            40% { transform: translate(4px, -2px) skew(10deg); text-shadow: 4px 0 #0ff, -4px 0 #f0f; filter: blur(1px); opacity: 0.8; }
-            60% { transform: translate(-2px, 4px) skew(-5deg); text-shadow: -2px 0 #0ff, 2px 0 #f0f; filter: blur(0px); opacity: 1; }
-            80% { transform: translate(2px, -4px) skew(5deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 0.9; }
-            100% { transform: translate(0, 0) skew(0deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 1; }
+            0% { transform: translate(0, 0) skew(0deg); text-shadow: 4px 0 #0ff, -4px 0 #f0f; opacity: 0.9; }
+            20% { transform: translate(-4px, 2px) skew(-5deg); text-shadow: -5px 0 #0ff, 5px 0 #f0f; opacity: 1; }
+            40% { transform: translate(4px, -2px) skew(5deg); text-shadow: 4px 0 #0ff, -4px 0 #f0f; opacity: 0.8; }
+            60% { transform: translate(-2px, 4px) skew(-2deg); text-shadow: -3px 0 #0ff, 3px 0 #f0f; opacity: 1; }
+            80% { transform: translate(2px, -4px) skew(2deg); text-shadow: 5px 0 #0ff, -5px 0 #f0f; opacity: 0.9; }
+            100% { transform: translate(0, 0) skew(0deg); text-shadow: 2px 0 #0ff, -2px 0 #f0f; opacity: 1; }
         }
 
-        /* 3. 드래그할 때 보이는 캡처 상자 */
+        /* 2. 드래그할 때 보이는 캡처 상자 */
         #selection-box {
             position: fixed;
             border: 1px dashed #fff;
@@ -66,32 +56,39 @@
             pointer-events: none;
             display: none;
         }
+
+        /* 3. 복구된 구역의 스타일 (자바스크립트가 생성할 창문) */
+        .recovered-block {
+            position: fixed;
+            overflow: hidden; /* 영역 밖의 글자는 자름 */
+            background-color: #050505; /* 노이즈를 가려버리는 배경색 */
+            z-index: 20;
+            /* 복구된 느낌을 주는 청록색 테두리와 희미한 광원 효과 */
+            border: 1px solid rgba(6, 182, 212, 0.4);
+            box-shadow: inset 0 0 15px rgba(6, 182, 212, 0.1);
+            pointer-events: none;
+        }
+
+        /* 창문 안에 들어갈 깨끗한 텍스트 */
+        .clean-clone {
+            position: absolute;
+            color: #9ca3af; /* 차분하고 선명한 회색 */
+        }
     </style>
 </head>
 <body class="select-none h-screen w-screen relative">
 
-    <svg width="0" height="0" style="position:absolute;">
-        <defs>
-            <mask id="eraser-mask">
-                <rect width="100%" height="100%" fill="white" />
-                <g id="cleared-regions"></g>
-            </mask>
-        </defs>
-    </svg>
-
-    <div id="clean-layer" class="text-layer"></div>
-
-    <div id="noisy-layer" class="text-layer"></div>
+    <div id="noisy-layer" class="text-base"></div>
 
     <div id="selection-box"></div>
 
-    <div class="absolute top-8 left-8 text-white font-mono text-xs tracking-widest z-40 bg-black/80 px-2 py-1 pointer-events-none border border-gray-800">
+    <div class="absolute top-8 left-8 text-white font-mono text-xs tracking-widest z-[60] bg-black/80 px-2 py-1 pointer-events-none border border-gray-800">
         [ 056 : DATA_RECOVERY ]<br>
         CORRUPTION_LEVEL: CRITICAL<br>
         <span id="cleared-count" class="text-cyan-400">RECOVERED_SECTORS: 0</span>
     </div>
     
-    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white font-mono text-[10px] tracking-widest z-40 bg-black/80 px-4 py-2 pointer-events-none uppercase border border-gray-800">
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white font-mono text-[10px] tracking-widest z-[60] bg-black/80 px-4 py-2 pointer-events-none uppercase border border-gray-800">
         DRAG TO ISOLATE AND RECOVER CORRUPTED DATA BLOCKS.
     </div>
 
@@ -99,12 +96,10 @@
         // 1. 더미 텍스트 세팅
         const dummyText = `[ SYSTEM LOG 409-B ] WARNING: SUBSTRATE INTEGRITY COMPROMISED. \nUNAUTHORIZED ENTITY DETECTED IN SECTOR 7. INITIATING QUARANTINE PROTOCOL... FAILED. \nDATA STREAM CORRUPTED. ATTEMPTING MANUAL OVERRIDE... \n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. \n\n[ MEMORY DUMP ]\n0x00A1: FF 00 2A 4B 99 \n0x00A2: CORRUPTED_BLOCK \n0x00A3: 11 22 33 44 55 \n\n`.repeat(15);
         
-        document.getElementById('clean-layer').innerText = dummyText;
         document.getElementById('noisy-layer').innerText = dummyText;
 
         // 2. 캡처 도구 로직
         const selectionBox = document.getElementById('selection-box');
-        const clearedRegions = document.getElementById('cleared-regions');
         const clearedCountDisplay = document.getElementById('cleared-count');
         
         let isDragging = false;
@@ -112,6 +107,7 @@
         let startY = 0;
         let clearCount = 0;
 
+        // 드래그 시작
         document.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
             
@@ -126,6 +122,7 @@
             selectionBox.style.display = 'block';
         });
 
+        // 드래그 중
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
 
@@ -143,6 +140,7 @@
             selectionBox.style.height = `${height}px`;
         });
 
+        // 🎯 드래그 끝 (물리적인 복구 창문 생성)
         document.addEventListener('mouseup', (e) => {
             if (!isDragging) return;
             isDragging = false;
@@ -156,16 +154,31 @@
             const width = Math.abs(endX - startX);
             const height = Math.abs(endY - startY);
 
+            // 너무 작은 클릭은 무시
             if (width > 10 && height > 10) {
-                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                rect.setAttribute("x", left);
-                rect.setAttribute("y", top);
-                rect.setAttribute("width", width);
-                rect.setAttribute("height", height);
-                rect.setAttribute("fill", "black");
                 
-                clearedRegions.appendChild(rect);
+                // 1. 노이즈를 가려버릴 창문(블록) 생성
+                const block = document.createElement('div');
+                block.className = 'recovered-block';
+                block.style.left = `${left}px`;
+                block.style.top = `${top}px`;
+                block.style.width = `${width}px`;
+                block.style.height = `${height}px`;
 
+                // 2. 창문 안에 넣을 깨끗한 텍스트 클론 생성
+                const cleanText = document.createElement('div');
+                cleanText.className = 'text-base clean-clone';
+                cleanText.innerText = dummyText;
+                
+                // 🎯 핵심: 창문 위치에 구애받지 않고 텍스트가 항상 전체 화면 기준 제자리에 있게 마이너스 좌표 적용
+                cleanText.style.left = `-${left}px`;
+                cleanText.style.top = `-${top}px`;
+
+                // 조립 및 화면에 추가
+                block.appendChild(cleanText);
+                document.body.appendChild(block);
+
+                // 카운트 증가
                 clearCount++;
                 clearedCountDisplay.innerText = `RECOVERED_SECTORS: ${clearCount}`;
             }
