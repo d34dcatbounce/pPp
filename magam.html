@@ -10,47 +10,43 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #000; /* 검정 배경 */
-            color: #fff; /* 흰 글자 */
-            /* 명조체 설정 */
+            background-color: #000;
+            color: #fff;
             font-family: 'Noto Serif KR', serif;
         }
 
-        /* 5x4 그리드 컨테이너 */
+        /* 🎯 [수정됨] 11x4 그리드로 확장 (총 44칸) */
         #grid-container {
             display: grid;
-            grid-template-columns: repeat(5, 100px);
-            grid-template-rows: repeat(4, 100px);
-            gap: 10px;
+            grid-template-columns: repeat(11, 70px);
+            grid-template-rows: repeat(4, 70px);
+            gap: 8px;
             z-index: 10;
         }
 
-        /* 각 글자가 들어갈 칸 */
+        /* 🎯 [수정됨] 칸 크기와 폰트 사이즈 조정 */
         .cell {
-            width: 100px;
-            height: 100px;
+            width: 70px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
-            border: 1px solid #222; /* 미세한 가이드라인 */
+            font-size: 30px;
+            border: 1px solid #222;
             transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
         }
 
-        /* 글자가 사라질 때의 애니메이션 (페이드 아웃) */
         .fade-out {
             opacity: 0;
             transform: scale(0.8);
             filter: blur(5px);
         }
 
-        /* 입력 중인 글자 강조 */
         .typing {
-            color: #06b6d4; /* 청록색 강조 */
+            color: #06b6d4;
             text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
         }
 
-        /* 숨겨진 실제 입력창 */
         #hidden-input {
             position: absolute;
             opacity: 0;
@@ -62,7 +58,7 @@
 
     <div class="absolute top-12 left-12 text-gray-500 font-mono text-xs tracking-widest z-20">
         [ 061 : DEADLINE_PRESSURE ]<br>
-        BUFFER_CAPACITY: 5_CHARS
+        BUFFER_CAPACITY: 22_CHARS
     </div>
 
     <h1 class="absolute top-24 text-xl font-light tracking-[0.5em] text-gray-400">마감에 쫓기듯</h1>
@@ -72,29 +68,39 @@
 
     <input type="text" id="hidden-input" autofocus>
 
-    <div class="absolute bottom-12 text-gray-700 font-mono text-[10px] tracking-widest uppercase">
-        Click anywhere to focus and start typing. 5 chars max visibility.
+    <div class="absolute bottom-12 text-gray-700 font-mono text-[10px] tracking-widest uppercase text-center w-full">
+        Click anywhere to focus and start typing. Maximum visibility limited to 22 characters.
     </div>
 
     <script>
         const gridContainer = document.getElementById('grid-container');
         const hiddenInput = document.getElementById('hidden-input');
         const cells = [];
-        const committedChars = []; // 입력이 완료된 전체 글자를 저장하는 배열
-        let globalCursor = 0; // 현재 입력해야 할 절대 위치 (0 ~ 계속 증가)
+        const committedChars = [];
+        let globalCursor = 0; 
 
-        // 1. 5x4 그리드 초기화 (20칸 생성)
-        for (let i = 0; i < 20; i++) {
+        // 🎯 [설정값] 그리드 크기 및 기본 텍스트 세팅
+        const defaultText = "우리가 저장할 수 있는 정보에는 한계가 있습니다.";
+        const maxVisibility = defaultText.length; // 22글자
+        const totalCells = 44; // 11열 * 4행
+
+        // 1. 그리드 초기화 (44칸 생성)
+        for (let i = 0; i < totalCells; i++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
             gridContainer.appendChild(cell);
             cells.push(cell);
         }
 
-        // 2. 화면 어디를 클릭해도 입력창에 포커스
+        // 🎯 2. 기본 텍스트 삽입 로직
+        for (let char of defaultText) {
+            committedChars[globalCursor] = char;
+            globalCursor++;
+        }
+
         document.addEventListener('click', () => hiddenInput.focus());
 
-        // 3. 한글 조합 및 입력 이벤트 처리
+        // 3. 입력 이벤트 처리
         let isComposing = false;
 
         hiddenInput.addEventListener('compositionstart', () => {
@@ -109,16 +115,14 @@
             isComposing = false;
             if (e.data) {
                 committedChars[globalCursor] = e.data;
-                globalCursor++; // 커서를 다음 칸으로 이동
-                hiddenInput.value = ''; // 입력창 비우기
+                globalCursor++;
+                hiddenInput.value = '';
                 renderGrid('', false);
             }
         });
 
-        // 영문/숫자 및 복사 붙여넣기 등 일반 입력 처리
         hiddenInput.addEventListener('input', (e) => {
             if (!isComposing && hiddenInput.value) {
-                // 한 번에 여러 글자가 들어와도 순서대로 처리 (예: 복붙)
                 for (let char of hiddenInput.value) {
                     committedChars[globalCursor] = char;
                     globalCursor++;
@@ -128,7 +132,6 @@
             }
         });
 
-        // (보너스) 백스페이스 처리: 오타 수정 시 커서 뒤로 무르기
         hiddenInput.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' && !isComposing) {
                 if (globalCursor > 0) {
@@ -139,41 +142,36 @@
             }
         });
 
-        // 4. 그리드 렌더링 (핵심 로직)
+        // 4. 렌더링 로직 (최대 22글자 유지)
         function renderGrid(currentTyping, isComposing) {
-            // 모든 칸을 깨끗하게 비우기
             cells.forEach(cell => {
                 cell.innerText = '';
                 cell.classList.remove('typing');
             });
 
-            // 화면에 보여줄 글자의 시작점과 끝점 계산 (최대 5글자만 유지)
             let start, end;
             if (isComposing) {
-                // 조합 중일 때는 이미 완성된 4글자 + 현재 조합 중인 1글자 = 총 5글자 노출
-                start = Math.max(0, globalCursor - 4);
+                start = Math.max(0, globalCursor - (maxVisibility - 1));
                 end = globalCursor - 1;
             } else {
-                // 평소에는 완성된 5글자 노출
-                start = Math.max(0, globalCursor - 5);
+                start = Math.max(0, globalCursor - maxVisibility);
                 end = globalCursor - 1;
             }
 
-            // 계산된 범위의 글자들을 제자리에 렌더링
             for (let i = start; i <= end; i++) {
-                const cellIndex = i % 20; // 20칸을 넘어가면 다시 0번 칸(첫 줄)으로 덮어씀
+                const cellIndex = i % totalCells; // 44칸 순회
                 cells[cellIndex].innerText = committedChars[i];
             }
 
-            // 현재 조합 중인 글자가 있다면 커서 위치에 표시
             if (isComposing && currentTyping) {
-                const cellIndex = globalCursor % 20;
+                const cellIndex = globalCursor % totalCells;
                 cells[cellIndex].innerText = currentTyping;
                 cells[cellIndex].classList.add('typing');
             }
         }
 
-        // 초기 포커스
+        // 초기 화면에 기본 텍스트 렌더링
+        renderGrid('', false);
         hiddenInput.focus();
     </script>
 </body>
