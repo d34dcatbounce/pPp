@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>마감에 쫓기듯 | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@200..900&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000; /* 검정 배경 */
+            color: #fff; /* 흰 글자 */
+            /* 명조체 설정 */
+            font-family: 'Noto Serif KR', serif;
+        }
+
+        /* 5x4 그리드 컨테이너 */
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 100px);
+            grid-template-rows: repeat(4, 100px);
+            gap: 10px;
+            z-index: 10;
+        }
+
+        /* 각 글자가 들어갈 칸 */
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            border: 1px solid #222; /* 미세한 가이드라인 */
+            transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+
+        /* 글자가 사라질 때의 애니메이션 (페이드 아웃) */
+        .fade-out {
+            opacity: 0;
+            transform: scale(0.8);
+            filter: blur(5px);
+        }
+
+        /* 입력 중인 글자 강조 */
+        .typing {
+            color: #06b6d4; /* 청록색 강조 */
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        /* 숨겨진 실제 입력창 */
+        #hidden-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center relative select-none">
+
+    <div class="absolute top-12 left-12 text-gray-500 font-mono text-xs tracking-widest z-20">
+        [ 061 : DEADLINE_PRESSURE ]<br>
+        BUFFER_CAPACITY: 5_CHARS
+    </div>
+
+    <h1 class="absolute top-24 text-xl font-light tracking-[0.5em] text-gray-400">마감에 쫓기듯</h1>
+
+    <div id="grid-container">
+        </div>
+
+    <input type="text" id="hidden-input" autofocus>
+
+    <div class="absolute bottom-12 text-gray-700 font-mono text-[10px] tracking-widest uppercase">
+        Click anywhere to focus and start typing. 5 chars max visibility.
+    </div>
+
+    <script>
+        const gridContainer = document.getElementById('grid-container');
+        const hiddenInput = document.getElementById('hidden-input');
+        const cells = [];
+        let charBuffer = []; // 최대 5글자를 담을 큐
+
+        // 1. 5x4 그리드 초기화 (20칸 생성)
+        for (let i = 0; i < 20; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            gridContainer.appendChild(cell);
+            cells.push(cell);
+        }
+
+        // 2. 화면 어디를 클릭해도 입력창에 포커스
+        document.addEventListener('click', () => hiddenInput.focus());
+
+        // 3. 한글 조합 및 입력 이벤트 처리
+        // '한 글자 완성'을 감지하기 위해 composition 이벤트를 활용합니다.
+        hiddenInput.addEventListener('compositionupdate', (e) => {
+            renderGrid(e.data, true);
+        });
+
+        hiddenInput.addEventListener('compositionend', (e) => {
+            if (e.data) {
+                addToBuffer(e.data);
+                hiddenInput.value = ''; // 입력창 비우기
+                renderGrid('', false);
+            }
+        });
+
+        // 영문/숫자 등 일반 입력 처리
+        hiddenInput.addEventListener('input', (e) => {
+            // 한글 조합 중이 아닐 때만 실행
+            if (!e.isComposing && e.data) {
+                addToBuffer(e.data);
+                hiddenInput.value = '';
+                renderGrid('', false);
+            }
+        });
+
+        // 4. 버퍼 관리 (6번째 글자가 들어오면 1번째 제거)
+        function addToBuffer(char) {
+            charBuffer.push(char);
+            if (charBuffer.length > 5) {
+                charBuffer.shift(); // 가장 앞의 글자 제거
+            }
+        }
+
+        // 5. 그리드 렌더링
+        function renderGrid(currentTyping, isComposing) {
+            // 모든 칸 초기화
+            cells.forEach(cell => {
+                cell.innerText = '';
+                cell.classList.remove('typing');
+            });
+
+            // 버퍼에 있는 완성된 글자들 배치
+            charBuffer.forEach((char, index) => {
+                cells[index].innerText = char;
+            });
+
+            // 현재 조합 중인 글자가 있다면 다음 칸에 표시
+            if (isComposing && charBuffer.length < 5) {
+                const typingCell = cells[charBuffer.length];
+                typingCell.innerText = currentTyping;
+                typingCell.classList.add('typing');
+            } else if (isComposing && charBuffer.length === 5) {
+                // 이미 5글자가 찼는데 또 조합 중이라면 마지막 칸을 교체하는 느낌으로 표시
+                const lastCell = cells[4];
+                lastCell.innerText = currentTyping;
+                lastCell.classList.add('typing');
+            }
+        }
+
+        // 초기 포커스
+        hiddenInput.focus();
+    </script>
+</body>
+</html>
