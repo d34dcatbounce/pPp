@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Liquid Lab | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 1. 배경 레이어 (연구소 질감) */
+        #liquid-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #1f2937; /* 다크 그레이 배경 */
+            z-index: -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            
+            /* 핵심: 마스크 적용 (나중에 자바스크립트로 구멍을 추가할 거야) */
+            -webkit-mask-image: url(#punch-mask);
+            mask-image: url(#punch-mask);
+        }
+
+        /* 2. 구이(Gooey) 효과를 위한 SVG 필터 정의 */
+        /* 이 필터는 자바스크립트로 제어하는 메타볼들이 뭉칠 수 있게 해줍니다. */
+        #gooey-filter {
+            position: absolute;
+            width: 0; height: 0;
+        }
+
+        /* 3. 액체 덩어리(Metaballs) 스타일 */
+        .metaball {
+            position: absolute;
+            background-color: #06b6d4; /* 청록색 액체 */
+            border-radius: 50%;
+            /* 블러 처리 (필터와 조합하여 구이 효과 생성) */
+            filter: blur(10px);
+            opacity: 0.8;
+            pointer-events: none; /* 마우스 이벤트를 통과시킴 */
+        }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-hidden text-white font-mono uppercase tracking-widest text-xs">
+
+    <div id="liquid-container">
+        <h2 class="text-3xl font-black tracking-tighter mb-4 text-center">[ 017 : LIQUID_LAB ]</h2>
+        <p class="text-gray-400 tracking-widest text-sm uppercase text-center max-w-lg">
+            MANIPULATE THE LIQUID SUBSTRATE. DRAG BLOBS TO OBSERVE MERGING AND COHESION.
+        </p>
+
+        <div class="absolute top-1/2 left-20 transform -translate-y-1/2">COHESION: HIGH</div>
+        <div class="absolute top-1/2 right-20 transform -translate-y-1/2 text-right">
+            SURFACE_TENSION: VARIABLE<br>
+            MOUSE_TARGET: ACTIVE
+        </div>
+    </div>
+
+    <div id="liquid-canvas" class="fixed top-0 left-0 width:100% height:100% z-index:10" style="filter: url(#gooey-filter);">
+        </div>
+
+    <svg id="gooey-filter-svg" width="0" height="0">
+        <defs>
+            <filter id="gooey-filter">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="gooey" />
+                <feComposite in="SourceGraphic" in2="gooey" operator="atop"/>
+            </filter>
+        </defs>
+    </svg>
+
+    <div class="fixed bottom-8 right-8 p-4 bg-gray-900/60 backdrop-blur-sm border border-cyan-900 flex justify-between items-center z-50 rounded-sm">
+        <span id="metaball-count" class="text-xs font-mono text-cyan-400 uppercase tracking-widest mr-6">BLOBS: 0</span>
+        <button onclick="resetLiquid()" class="text-[10px] font-bold border border-cyan-400 px-3 py-1 hover:bg-cyan-400 hover:text-gray-900 transition-colors">RESET FLUID</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('liquid-canvas');
+        const count = document.getElementById('metaball-count');
+        const totalMetaballs = 20; // 캔버스에 떠다닐 메타볼 개수
+        let metaballs = [];
+
+        // 메타볼 클래스 정의
+        class Metaball {
+            constructor(element) {
+                this.element = element;
+                this.x = Math.random() * window.innerWidth;
+                this.y = Math.random() * window.innerHeight;
+                this.dx = (Math.random() - 0.5) * 2; // X축 속도
+                this.dy = (Math.random() - 0.5) * 2; // Y축 속도
+                this.size = Math.random() * 80 + 40; // 크기
+
+                this.element.style.width = `${this.size}px`;
+                this.element.style.height = `${this.size}px`;
+            }
+
+            // 위치 업데이트 함수
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+
+                // 벽 충돌 감지
+                if (this.x + this.size > window.innerWidth || this.x < 0) this.dx = -this.dx;
+                if (this.y + this.size > window.innerHeight || this.y < 0) this.dy = -this.dy;
+
+                // 마우스 추적 (중앙의 큰 메타볼 5개만 커서를 따라다니게 함)
+                const mouseIdx = metaballs.indexOf(this);
+                if (mouseIdx < 5) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    this.x += dx * 0.05; // 부드럽게 추적
+                    this.y += dy * 0.05;
+                }
+
+                this.element.style.left = `${this.x}px`;
+                this.element.style.top = `${this.y}px`;
+            }
+        }
+
+        // 초기화
+        for (let i = 0; i < totalMetaballs; i++) {
+            const el = document.createElement('div');
+            el.className = 'metaball';
+            canvas.appendChild(el);
+            metaballs.push(new Metaball(el));
+        }
+        count.innerText = `BLOBS: ${totalMetaballs}`;
+
+        // 마우스 추적
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+
+        // 애니메이션 루프
+        function animate() {
+            requestAnimationFrame(animate);
+            metaballs.forEach(m => m.update());
+        }
+        animate();
+
+        // 리셋 함수
+        function resetLiquid() {
+            metaballs.forEach(m => {
+                m.x = Math.random() * window.innerWidth;
+                m.y = Math.random() * window.innerHeight;
+            });
+        }
+    </script>
+</body>
+</html>
