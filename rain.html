@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Acid Rain | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 아주 짙은 어둠 */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* 비가 내릴 캔버스 영역 */
+        #rain-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 텍스트 컨테이너 */
+        #text-container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            /* 약간의 네온 빛 번짐 효과 */
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        /* 개별 글자(span) 스타일 */
+        .char {
+            display: inline-block;
+            transition: opacity 0.5s ease;
+            white-space: pre; /* 공백 유지 */
+        }
+
+        /* 무너져 내리는 애니메이션 */
+        .crumble {
+            /* 자바스크립트에서 부여한 변수(--rx, --rr, --duration)를 사용 */
+            animation: fallDown var(--duration) cubic-bezier(0.5, 0, 1, 1) forwards;
+        }
+
+        @keyframes fallDown {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                /* 아래로 떨어지면서 랜덤하게 좌우로 퍼지고 회전함 */
+                transform: translate(var(--rx), 100vh) rotate(var(--rr));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center relative select-none">
+
+    <canvas id="rain-canvas"></canvas>
+
+    <div id="text-container" class="text-gray-200 text-2xl md:text-4xl font-light tracking-widest">
+        </div>
+
+    <div class="absolute top-8 left-8 text-gray-600 font-mono text-xs tracking-widest z-20">
+        [ 044 : ACID_RAIN ]<br>
+        STRUCTURAL_INTEGRITY: COMPROMISED
+    </div>
+
+    <button onclick="resetScene()" class="absolute bottom-8 right-8 z-20 text-[10px] font-mono font-bold border border-gray-600 text-gray-500 px-3 py-1 hover:bg-white hover:text-black transition-colors uppercase tracking-widest">
+        Rebuild Structure
+    </button>
+
+    <script>
+        // --- 1. 글자 쪼개기 및 세팅 ---
+        const textContainer = document.getElementById('text-container');
+        const sentence = "이제부터 비가 내릴 거에요.";
+        let chars = [];
+
+        function buildText() {
+            textContainer.innerHTML = '';
+            chars = [];
+            
+            // 문장을 한 글자씩 쪼개서 span 태그로 감쌈
+            sentence.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.innerText = char;
+                span.className = 'char';
+                textContainer.appendChild(span);
+                chars.push(span);
+            });
+        }
+
+        // --- 2. 비로 인한 무너짐(Collapse) 로직 ---
+        let collapseTimeout;
+
+        function triggerCollapse() {
+            chars.forEach((span) => {
+                // 각 글자마다 무작위 떨어짐 수치 계산
+                const randomX = (Math.random() - 0.5) * 200; // 좌우 퍼짐 (-100px ~ 100px)
+                const randomRotate = (Math.random() - 0.5) * 180; // 회전각 (-90도 ~ 90도)
+                const randomDuration = 1 + Math.random() * 1.5; // 떨어지는 시간 (1초 ~ 2.5초)
+                const randomDelay = Math.random() * 2000; // 떨어지기 시작하는 지연 시간 (0 ~ 2초 내에 랜덤하게 부서짐)
+
+                // CSS 변수로 값 전달
+                span.style.setProperty('--rx', `${randomX}px`);
+                span.style.setProperty('--rr', `${randomRotate}deg`);
+                span.style.setProperty('--duration', `${randomDuration}s`);
+
+                // 딜레이 후 클래스 추가하여 애니메이션 실행
+                setTimeout(() => {
+                    span.classList.add('crumble');
+                }, randomDelay);
+            });
+        }
+
+        // --- 3. 캔버스 비(Rain) 파티클 시스템 ---
+        const canvas = document.getElementById('rain-canvas');
+        const ctx = canvas.getContext('2d');
+        let raindrops = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Raindrop {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height * -1; // 화면 위에서 시작
+                this.length = Math.random() * 20 + 10; // 빗줄기 길이
+                this.speed = Math.random() * 10 + 15; // 떨어지는 속도
+                this.opacity = Math.random() * 0.3 + 0.1; // 투명도
+            }
+            update() {
+                this.y += this.speed;
+                // 바닥에 닿으면 다시 위로 리셋
+                if (this.y > canvas.height) {
+                    this.y = Math.random() * -100;
+                    this.x = Math.random() * canvas.width;
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x, this.y + this.length);
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.opacity})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // 비 파티클 150개 생성
+        for (let i = 0; i < 150; i++) {
+            raindrops.push(new Raindrop());
+        }
+
+        function animateRain() {
+            // 잔상 효과를 위해 투명도 있는 검은색으로 덮음
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            raindrops.forEach(drop => {
+                drop.update();
+                drop.draw();
+            });
+            requestAnimationFrame(animateRain);
+        }
+
+        // --- 4. 씬 제어 ---
+        function resetScene() {
+            clearTimeout(collapseTimeout);
+            buildText();
+            // 3초간 비가 내린 후 텍스트가 무너지기 시작함
+            collapseTimeout = setTimeout(triggerCollapse, 3000);
+        }
+
+        // 초기 실행
+        animateRain();
+        resetScene();
+
+    </script>
+</body>
+</html>
