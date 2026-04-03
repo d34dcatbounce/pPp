@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Typography Lab | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang&family=Nanum+Pen+Script&family=Noto+Sans+KR:wght@100..900&family=Noto+Serif+KR:wght@200..900&family=DungGeunMo&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #e5e5e5; /* 눈이 편안한 밝은 회색 배경 */
+            color: #111827;
+        }
+
+        /* 중앙 텍스트 트랜지션 (부드러운 변경) */
+        #pangram {
+            transition: color 0.3s ease, font-family 0.3s ease;
+            white-space: nowrap;
+        }
+
+        /* 폰트 종류별 CSS 클래스 매핑 */
+        .font-gothic { font-family: 'Noto Sans KR', sans-serif; }
+        .font-myeongjo { font-family: 'Noto Serif KR', serif; }
+        .font-batang { font-family: 'Gowun Batang', serif; }
+        .font-pen { font-family: 'Nanum Pen Script', cursive; }
+        
+        /* 커스텀 슬라이더 (Range Input) 디자인 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 8px;
+            background: #111827;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 2px;
+            background: #9ca3af;
+        }
+
+        /* 우측 폰트 선택 버튼 호버 효과 */
+        .font-btn {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .font-btn::before {
+            content: '';
+            position: absolute;
+            left: -10px; top: 50%;
+            transform: translateY(-50%);
+            width: 4px; height: 0;
+            background-color: #06b6d4;
+            transition: height 0.2s ease;
+        }
+        .font-btn.active::before { height: 100%; }
+        .font-btn.active { color: #06b6d4; font-weight: bold; }
+    </style>
+</head>
+<body class="h-screen w-screen flex relative select-none">
+
+    <div class="absolute top-8 left-8 text-gray-500 font-mono text-xs tracking-widest z-20">
+        [ 021 : TYPOGRAPHY_LAB ]<br>
+        STRUCTURAL_DEFORMATION_TEST
+    </div>
+
+    <main class="flex-1 flex items-center justify-center p-20 overflow-hidden relative">
+        <div class="absolute inset-0 opacity-5 pointer-events-none" 
+             style="background-image: radial-gradient(#000 1px, transparent 1px); background-size: 20px 20px;"></div>
+             
+        <h1 id="pangram" class="font-gothic text-center" style="font-size: 80px; font-weight: 400; transform: skewX(0deg);">
+            다람쥐 헌 쳇바퀴에 타고파
+        </h1>
+    </main>
+
+    <aside class="w-64 border-l border-gray-300 bg-gray-100 flex flex-col justify-center px-8 z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.05)]">
+        <h3 class="text-xs font-mono text-gray-400 tracking-widest mb-8 border-b border-gray-300 pb-2">TYPEFACE</h3>
+        
+        <div class="flex flex-col space-y-6">
+            <button class="font-btn active text-left text-lg font-gothic tracking-tight" onclick="changeFont('font-gothic', this)">
+                Noto 고딕
+            </button>
+            <button class="font-btn text-left text-lg font-myeongjo tracking-tight" onclick="changeFont('font-myeongjo', this)">
+                Noto 명조
+            </button>
+            <button class="font-btn text-left text-lg font-batang tracking-tight" onclick="changeFont('font-batang', this)">
+                고운 바탕
+            </button>
+            <button class="font-btn text-left text-2xl font-pen tracking-tight" onclick="changeFont('font-pen', this)">
+                나눔 펜글씨
+            </button>
+        </div>
+    </aside>
+
+    <footer class="absolute bottom-0 left-0 w-[calc(100%-16rem)] h-32 bg-white/80 backdrop-blur-md border-t border-gray-300 flex items-center justify-around px-12 z-20">
+        
+        <div class="w-1/4 flex flex-col">
+            <div class="flex justify-between text-xs font-mono text-gray-500 mb-2">
+                <span>SIZE</span>
+                <span id="val-size">80px</span>
+            </div>
+            <input type="range" id="slider-size" min="20" max="200" value="80" oninput="updateTypography()">
+        </div>
+
+        <div class="w-1/4 flex flex-col">
+            <div class="flex justify-between text-xs font-mono text-gray-500 mb-2">
+                <span>WEIGHT</span>
+                <span id="val-weight">400</span>
+            </div>
+            <input type="range" id="slider-weight" min="100" max="900" step="100" value="400" oninput="updateTypography()">
+        </div>
+
+        <div class="w-1/4 flex flex-col">
+            <div class="flex justify-between text-xs font-mono text-gray-500 mb-2">
+                <span>SLANT (SKEW)</span>
+                <span id="val-slant">0°</span>
+            </div>
+            <input type="range" id="slider-slant" min="-45" max="45" value="0" oninput="updateTypography()">
+        </div>
+
+    </footer>
+
+    <script>
+        const pangram = document.getElementById('pangram');
+        
+        const sliderSize = document.getElementById('slider-size');
+        const sliderWeight = document.getElementById('slider-weight');
+        const sliderSlant = document.getElementById('slider-slant');
+        
+        const valSize = document.getElementById('val-size');
+        const valWeight = document.getElementById('val-weight');
+        const valSlant = document.getElementById('val-slant');
+
+        // [핵심 1] 슬라이더 값에 따라 텍스트 스타일 실시간 업데이트
+        function updateTypography() {
+            const size = sliderSize.value;
+            const weight = sliderWeight.value;
+            // CSS skewX는 반대 방향으로 기울어야 일반적인 이탤릭 방향(오른쪽)이 되므로 마이너스를 곱함
+            const slant = sliderSlant.value * -1; 
+
+            // 텍스트에 스타일 적용
+            pangram.style.fontSize = `${size}px`;
+            pangram.style.fontWeight = weight;
+            pangram.style.transform = `skewX(${slant}deg)`;
+
+            // UI 숫자에 반영
+            valSize.innerText = `${size}px`;
+            valWeight.innerText = weight;
+            valSlant.innerText = `${sliderSlant.value}°`;
+        }
+
+        // [핵심 2] 우측 패널에서 폰트 종류 변경
+        function changeFont(fontClass, btnElement) {
+            // 모든 버튼에서 active 클래스 제거
+            document.querySelectorAll('.font-btn').forEach(btn => btn.classList.remove('active'));
+            // 클릭된 버튼에 active 클래스 추가
+            btnElement.classList.add('active');
+
+            // 기존 폰트 클래스(font-xxx)를 모두 지우고 새 폰트 클래스 추가
+            pangram.className = `text-center ${fontClass}`;
+            
+            // 폰트가 바뀔 때 살짝 깜빡이는 애니메이션 효과
+            pangram.style.opacity = '0';
+            setTimeout(() => {
+                pangram.style.opacity = '1';
+            }, 150);
+        }
+    </script>
+</body>
+</html>
