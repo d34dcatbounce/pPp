@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Dispersion Field | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 아주 짙은 어둠 */
+            color: #d1d5db;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        /* 1. 데이터 조각들이 그려질 캔버스 영역 (전체 화면) */
+        #scatter-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 1;
+            cursor: none; /* 기본 커서를 숨기고 조각들이 커서 역할을 함 */
+        }
+
+        /* 2. 중앙 설명 텍스트 (조각들 뒤에 배치) */
+        #central-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 5; /* 캔버스(1)보다는 위, 상단 UI(10)보다는 아래 */
+            pointer-events: none; /* 글자 위에서도 마우스 이벤트가 캔버스로 전달되도록 */
+            width: 100%;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative select-none">
+
+    <div id="central-text">
+        <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-4 text-gray-200">
+            DISPERSION_<span class="text-cyan-500">FIELD</span>
+        </h2>
+        <p class="text-gray-600 tracking-widest text-sm md:text-base uppercase max-w-lg mx-auto leading-relaxed">
+            Manipulate the data substrate. Move to create paths, Click to disperse fragments.
+            All archived data points are volatile.
+        </p>
+    </div>
+
+    <canvas id="scatter-canvas"></canvas>
+
+    <div class="absolute top-12 left-12 text-gray-500 font-mono text-xs tracking-widest z-10 pointer-events-none">
+        [ 019 : DISPERSION_FIELD ]<br>
+        FIELD_COHESION: ONLINE<br>
+        STATUS: OBSERVING
+    </div>
+
+    <script>
+        // 캔버스 세팅
+        const canvas = document.getElementById('scatter-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let particles = [];
+        const particleCount = 200; // 화면에 떠다닐 조각의 개수
+
+        // 🎯 [수정됨] 청록색(Cyan) 기반의 상징색 (image_0.png와 동일)
+        const particleColor = '#06b6d4'; 
+
+        // 캔버스 크기를 화면에 맞게 조정
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            // 리사이즈 시 조각들 재배치 (화면 밖으로 나가는 것 방지)
+            particles.forEach(p => p.resetPosition());
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 🎯 [핵심] 조각(Particle) 클래스 정의
+        class Particle {
+            constructor() {
+                this.resetPosition();
+                // 미세하게 다른 크기 (1px ~ 4px)
+                this.size = Math.random() * 3 + 1;
+                this.resetVelocity();
+                // 다시 모여드는 속도
+                this.cohesionSpeed = Math.random() * 0.05 + 0.01;
+                this.friction = 0.96; // 공기 저항 (마찰력)
+            }
+
+            // 위치 초기화 (화면 랜덤)
+            resetPosition() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+            }
+
+            // 속도 및 상태 초기화
+            resetVelocity() {
+                this.vx = (Math.random() - 0.5) * 2; // 초기 X 속도
+                this.vy = (Math.random() - 0.5) * 2; // 초기 Y 속도
+                this.scatterSpeed = Math.random() * 8 + 4; // 클릭 시 흩어지는 최대 속도
+                this.isScattering = false; // 현재 흩어지는 중인가?
+                this.isReturning = false;   // 다시 모여드는 중인가?
+            }
+
+            // 상태 업데이트 루프
+            update(mouse) {
+                // 마우스가 화면 안에 있을 때만 상호작용
+                if (mouse.x > 0 && mouse.y > 0) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // 🎯 [핵심 인터랙션] 흩어짐(Disperse) & 모여듦(Cohesion)
+                    if (this.isScattering) {
+                        // 1. 클릭 시 흩어짐 (마우스에서 멀어지는 방향)
+                        const forceX = (dx / distance) * this.scatterSpeed;
+                        const forceY = (dy / distance) * this.scatterSpeed;
+                        this.vx += forceX;
+                        this.vy += forceY;
+                        
+                        // 저항에 의해 속도가 줄어들면 흩어짐 중단
+                        if (Math.abs(this.vx) < 1 && Math.abs(this.vy) < 1) {
+                            this.isScattering = false;
+                            this.isReturning = true; // 다시 모여들기 시작
+                        }
+                    } else if (this.isReturning || distance < 250) {
+                        // 2. 근처에 있거나(Path 생성) 흩어진 후, 커서 주변으로 모여듦
+                        // 부드러운 움직임 (현재 위치에서 커서 위치로 좁혀감)
+                        this.vx += (mouse.x - this.x) * this.cohesionSpeed * (distance / 300);
+                        this.vy += (mouse.y - this.y) * this.cohesionSpeed * (distance / 300);
+                        
+                        // 커서에 아주 가까워지면 모여듦 중단
+                        if(distance < 30) this.isReturning = false;
+                    } else {
+                        // 3. 마우스와 멀어졌을 때 미세하게 떠다님 (랜덤 표류)
+                        this.vx += (Math.random() - 0.5) * 0.2;
+                        this.vy += (Math.random() - 0.5) * 0.2;
+                    }
+                }
+
+                // 🎯 저항(Friction) 적용
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                // 위치 업데이트
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 화면 경계 체크 (벽에 튕기지 않고 화면 너머로 사라졌다 반대편에서 나타남 - 무한 루프)
+                if (this.x < -this.size * 2) this.x = width + this.size;
+                if (this.x > width + this.size) this.x = -this.size;
+                if (this.y < -this.size * 2) this.y = height + this.size;
+                if (this.y > height + this.size) this.y = -this.size;
+            }
+
+            // 캔버스에 그리기
+            draw() {
+                // 속도에 따라 미세하게 투명도 변화
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                const opacity = Math.min(Math.max(speed * 0.1, 0.4), 0.9);
+                
+                ctx.fillStyle = `rgba(6, 182, 212, ${opacity})`; // #06b6d4 상징색
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 클릭 시 흩어짐 발동
+            scatter() {
+                this.resetVelocity(); // 기존 속도 초기화
+                this.isScattering = true;
+                this.isReturning = false;
+            }
+        }
+
+        // 초기 조각들 생성
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        // 마우스 추적
+        let mouse = { x: -100, y: -100 }; // 초기값 (화면 밖)
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = -100; mouse.y = -100;
+        });
+
+        // 🎯 [핵심 인터랙션] 클릭 시 폭발적으로 흩어짐 트리거
+        canvas.addEventListener('click', () => {
+            // 마우스 클릭 위치에 네온 이펙트 (간단하게 구현)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 80, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 모든 조각들에게 흩어짐(Scatter) 명령 하달
+            particles.forEach(p => p.scatter());
+        } );
+
+        // 애니메이션 루프
+        function animate() {
+            // 🎯 [최적화] 이전 프레임을 지우되, 아주 미세하게 남겨 잔상(Trail) 효과 생성
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)'; // 짙은 배경색 + 투명도
+            ctx.fillRect(0, 0, width, height);
+
+            // 중앙 텍스트는 지워지지 않도록 매 프레임 다시 그릴 필요 없음 (z-index 처리)
+
+            // 조각 업데이트 및 그리기
+            particles.forEach(particle => {
+                particle.update(mouse);
+                particle.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
