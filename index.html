@@ -47,19 +47,24 @@
         const totalPixels = 64; // 8x8 그리드
         const hoverColor = '#06b6d4'; 
 
-        // 🎯 [추가됨] 연결할 파일과 툴팁 이름을 관리하는 모듈 맵
-        // 나중에 파일을 추가하면 여기에 번호와 파일명만 추가하면 끝!
+        // 🎯 [완성됨] 파일 디렉토리에 맞게 1~13번까지 모든 모듈 연결
         const moduleMap = {
             1: { file: 'circle.html', title: '077 : PERFECT_CIRCLE' },
             2: { file: 'cursor.html', title: '013 : CURSOR_LAB' },
             3: { file: 'liquid.html', title: '017 : LIQUID_LAB' },
             4: { file: 'peeking.html', title: '099 : THE_KEYHOLE' },
             5: { file: 'punching.html', title: '033 : PUNCHING_LAB' },
-            6: { file: 'rain.html', title: '044 : ACID_RAIN' },
-            7: { file: 'text.html', title: '044 : text' }
+            6: { file: 'rain.html', title: '044 : TYPOGRAPHIC_RAIN' },
+            7: { file: 'text.html', title: '021 : TYPOGRAPHY_LAB' },
+            8: { file: 'ascii.html', title: '088 : ASCII_CURSOR' },
+            9: { file: 'capture.html', title: '056 : NOISE_ERASER' },
+            10: { file: 'evasion.html', title: '007 : EVASION_FIELD' },
+            11: { file: 'magam.html', title: '061 : DEADLINE_PRESSURE' },
+            12: { file: 'nested.html', title: '011 : NESTED_SYSTEM' },
+            13: { file: 'particle.html', title: '019 : DISPERSION_FIELD' }
         };
 
-        // 🎯 [수정됨] 페이지 이동을 처리하는 함수
+        // 페이지 이동을 처리하는 함수
         function navigateToPage(pixelIndex) {
             // 클릭한 번호가 moduleMap에 등록되어 있는지 확인
             if (moduleMap[pixelIndex]) {
@@ -83,7 +88,7 @@
             pixel.className = 'pixel relative block w-full h-full cursor-pointer z-10 border-[0.5px] border-white/40';
             pixel.style.backgroundColor = baseBgColor;
 
-            // 🎯 [수정됨] 툴팁 내용 설정 (할당된 파일이 있으면 해당 타이틀 사용, 없으면 기본 이름)
+            // 툴팁 내용 설정 (할당된 파일이 있으면 해당 타이틀 사용, 없으면 기본 이름)
             const tooltip = document.createElement('div');
             tooltip.className = 'tooltip absolute left-full top-1/2 -translate-y-1/2 px-4 py-2 bg-gray-900 text-cyan-400 text-xs tracking-widest whitespace-nowrap opacity-0 invisible transition-all duration-300 pointer-events-none shadow-lg border border-cyan-900 z-50';
             
@@ -92,7 +97,7 @@
 
             // 마우스 호버(올렸을 때) 이벤트
             pixel.addEventListener('mouseenter', function() {
-                // 연결된 모듈이 있는 칸은 청록색, 없는 칸은 약간 어두운 회색으로 반응을 다르게 주면 더 좋습니다.
+                // 연결된 모듈이 있는 칸은 청록색, 없는 칸은 약간 어두운 회색으로 반응을 다르게 줍니다.
                 this.style.backgroundColor = moduleMap[pixelIndex] ? hoverColor : '#9ca3af';
                 this.style.transform = 'scale(1.08)';
                 this.style.zIndex = '50';
