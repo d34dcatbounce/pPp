@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Evasion Field | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 짙은 어둠 */
+            color: #d1d5db; /* Monochromatic 그레이 */
+            /* Retro-tech monospaced font */
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* 1. 텍스트 컨테이너 (중앙 배치) */
+        #text-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 1000px;
+            text-align: justify;
+            line-height: 1.8;
+            font-size: 18px;
+            letter-spacing: 0.1em;
+            z-index: 10;
+        }
+
+        /* 2. [핵심] 개별 글자(span) 스타일 */
+        .char {
+            display: inline-block; /* 트랜스폼 적용을 위해 필요 */
+            white-space: pre; /* 공백 유지 */
+            
+            /* 🎯 부드러운 복귀를 위한 트랜지션 (피할 때는 즉시, 돌아올 때는 천천히) */
+            transition: transform 0.6s cubic-bezier(0.2, 0, 0.2, 1), color 0.6s ease;
+            will-change: transform; /* GPU 가속 최적화 */
+        }
+
+        /* 마우스 근처에 있을 때 글자 스타일 (강조) */
+        .evading {
+            color: #fff; /* 흰색으로 번쩍임 */
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            /* 피할 때는 트랜지션을 꺼야 끊기지 않고 부드럽게 도망침 */
+            transition: transform 0s, color 0.1s ease; 
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative select-none">
+
+    <div id="text-container">
+        </div>
+
+    <div class="absolute top-12 left-12 text-gray-500 font-mono text-xs tracking-widest z-20 pointer-events-none">
+        [ 007 : EVASION_FIELD ]<br>
+        SUBSTRATE: PRIDE_AND_PREJUDICE<br>
+        STATUS: OBSERVING_REPULESION
+    </div>
+
+    <div class="absolute bottom-12 text-center w-full text-gray-700 font-mono text-[10px] tracking-widest uppercase z-20 pointer-events-none">
+        Move cursor near text to observe electrostatic repulsion.
+    </div>
+
+    <script>
+        const container = document.getElementById('text-container');
+        
+        // 1. [더미 텍스트] 오만과 편견 (Pride and Prejudice) 오프닝 (English)
+        const text = `It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife. However little known the feelings or views of such a man may be on his first entering a neighbourhood, this truth is so well fixed in the minds of the surrounding families, that he is considered the rightful property of some one or other of their daughters.`;
+
+        // 2. 글자 쪼개기 및 세팅
+        function buildText() {
+            container.innerHTML = '';
+            // 문장을 한 글자씩 쪼개서 span 태그로 감쌈
+            text.split('').forEach(char => {
+                const span = document.createElement('span');
+                span.innerText = char;
+                span.className = 'char';
+                container.appendChild(span);
+            });
+        }
+        buildText();
+
+        // 생성된 모든 글자 요소 가져오기
+        const chars = document.querySelectorAll('.char');
+
+        // 3. [핵심] 마우스 회피(Evasion) 로직
+        document.addEventListener('mousemove', (e) => {
+            const mx = e.clientX; // 마우스 X
+            const my = e.clientY; // 마우스 Y
+            
+            const radius = 100; // 회피 반경 (100px 이내로 오면 도망침)
+            const forceFactor = 35; // 도망치는 최대 거리
+
+            chars.forEach(span => {
+                // 각 글자의 중심 좌표 얻기 (성능을 위해 getBoundingClientRect()는 최소화하는 게 좋지만, 여기선 직관성을 위해 사용)
+                const rect = span.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+
+                // 마우스와 글자 중심 사이의 거리 계산
+                const dx = cx - mx;
+                const dy = cy - my;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < radius) {
+                    // 🎯 [핵심] 회피 연산 (자기장 반발력 흉내)
+                    
+                    // 마우스에서 멀어지는 방향 벡터 (Normalized)
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+
+                    // 거리에 따른 힘의 세기 (가까울수록 강력하게 밀어냄)
+                    const strength = (radius - dist) / radius;
+                    
+                    // 최종 이동 거리 및 랜덤성 부여 (결이 끊기지 않게)
+                    const moveX = nx * strength * forceFactor * (Math.random() * 0.4 + 0.8);
+                    const moveY = ny * strength * forceFactor * (Math.random() * 0.4 + 0.8);
+
+                    // 스타일 적용 (CSS transform 사용 - 성능 우수)
+                    span.style.transform = `translate(${moveX}px, ${moveY}px)`;
+                    span.classList.add('evading'); // 피하는 중임을 표시 (트랜지션 끄기용)
+                } else {
+                    // 반경 밖으로 나가면 원래 자리로 복구
+                    span.style.transform = 'translate(0, 0)';
+                    span.classList.remove('evading'); // 원래대로 복구 (부드러운 트랜지션 켜짐)
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
