@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Cursor Lab | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 커서가 실제로 적용될 영역 (전체 화면) */
+        body {
+            transition: cursor 0.2s ease;
+        }
+        
+        /* 커서 예시 카드 스타일 */
+        .cursor-card {
+            transition: all 0.2s ease;
+            border: 1px solid #e5e7eb;
+        }
+        .cursor-card:hover {
+            background-color: #f9fafb;
+            transform: translateY(-2px);
+            border-color: #06b6d4;
+        }
+        .active-cursor {
+            background-color: #ecfeff !important;
+            border-color: #06b6d4 !important;
+            color: #0891b2 !important;
+        }
+    </style>
+</head>
+<body class="bg-white min-h-screen flex flex-col items-center py-20 px-10">
+
+    <div class="text-center mb-16">
+        <h2 class="text-3xl font-black tracking-tighter mb-2">[ 013 : CURSOR_LAB ]</h2>
+        <p class="text-gray-400 tracking-widest text-sm uppercase">Select a module to override the default pointer.</p>
+    </div>
+
+    <div id="cursor-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+        </div>
+
+    <div class="mt-20 p-4 border-t border-b border-gray-100 w-full max-w-4xl flex justify-between items-center">
+        <span id="current-status" class="text-xs font-mono text-gray-500 uppercase tracking-widest">Current: DEFAULT</span>
+        <button onclick="resetCursor()" class="text-[10px] font-bold border border-black px-3 py-1 hover:bg-black hover:text-white transition-colors">RESET SYSTEM</button>
+    </div>
+
+    <script>
+        // 사용할 커서 종류 정의 (CSS 표준 커서들)
+        const cursorTypes = [
+            { id: 'crosshair', icon: '┼', desc: 'Precision' },
+            { id: 'wait', icon: '⏳', desc: 'Processing' },
+            { id: 'text', icon: 'Ⅰ', desc: 'Information' },
+            { id: 'move', icon: '✥', desc: 'Coordinate' },
+            { id: 'help', icon: '?', desc: 'Guidance' },
+            { id: 'not-allowed', icon: '⊘', desc: 'Restricted' },
+            { id: 'zoom-in', icon: '🔍', desc: 'Magnify' },
+            { id: 'grab', icon: '✋', desc: 'Interaction' },
+            { id: 'cell', icon: '⊞', desc: 'Selection' },
+            { id: 'copy', icon: '⎘', desc: 'Duplicate' },
+            { id: 'none', icon: '◌', desc: 'Invisible' },
+            { id: 'all-scroll', icon: '☩', desc: 'Navigation' }
+        ];
+
+        const grid = document.getElementById('cursor-grid');
+        const status = document.getElementById('current-status');
+
+        // 카드 생성 루프
+        cursorTypes.forEach(type => {
+            const card = document.createElement('div');
+            card.className = 'cursor-card p-8 flex flex-col items-center justify-center cursor-pointer bg-white rounded-sm';
+            // 실제 해당 커서를 카드 자체에도 적용해서 미리보기 효과
+            card.style.cursor = type.id;
+            
+            card.innerHTML = `
+                <span class="text-2xl mb-4 font-mono">${type.icon}</span>
+                <span class="text-[10px] font-bold tracking-widest uppercase">${type.id}</span>
+                <span class="text-[8px] text-gray-400 mt-1 uppercase">${type.desc}</span>
+            `;
+
+            // 클릭 시 전역 커서 변경
+            card.onclick = () => {
+                // 기존 활성화 클래스 제거
+                document.querySelectorAll('.cursor-card').forEach(c => c.classList.remove('active-cursor'));
+                
+                // 전역(body) 커서 변경
+                document.body.style.cursor = type.id;
+                
+                // 현재 카드 활성화 표시
+                card.classList.add('active-cursor');
+                status.innerText = `Current: ${type.id.toUpperCase()}`;
+            };
+
+            grid.appendChild(card);
+        });
+
+        // 리셋 함수
+        function resetCursor() {
+            document.body.style.cursor = 'default';
+            document.querySelectorAll('.cursor-card').forEach(c => c.classList.remove('active-cursor'));
+            status.innerText = 'Current: DEFAULT';
+        }
+    </script>
+</body>
+</html>
