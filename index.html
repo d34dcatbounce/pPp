@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFA Official Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        /* 픽셀의 부드러운 트랜지션 (Framer Motion 스타일 흉내) */
+        .pixel {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* 호버 시 툴팁이 부드럽게 나타나는 애니메이션 */
+        .pixel:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(15px, -50%);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen relative overflow-hidden text-gray-900">
+
+    <header class="absolute top-8 left-8 select-none">
+        <h1 class="text-xl font-bold tracking-[0.15em]">[OFFICIAL ARCHIVE]</h1>
+        <p class="text-sm tracking-widest text-gray-400 mt-1">[DFA]</p>
+    </header>
+
+    <main class="relative z-10 perspective-1000">
+        <div id="pixel-grid" class="grid grid-cols-8 w-[600px] h-[600px] bg-gray-100 shadow-2xl relative">
+            </div>
+    </main>
+
+    <footer class="absolute bottom-8 text-center w-full select-none">
+        <p class="text-xs tracking-[0.25em] text-gray-500 font-medium">
+            EXPLORE THE DATA GRID. CLICK ANY PIXEL TO NAVIGATE.
+        </p>
+    </footer>
+
+    <script>
+        const gridContainer = document.getElementById('pixel-grid');
+        const totalPixels = 64; // 8x8 그리드
+
+        // 호버 시 변할 원본 이미지의 상징색 (청록색)
+        const hoverColor = '#06b6d4'; // Tailwind의 cyan-500 색상
+
+        // 64개의 픽셀 생성 루프
+        for (let i = 0; i < totalPixels; i++) {
+            // 각 픽셀에 적용할 무채색(회색조)을 랜덤하게 생성하여 지형의 질감을 표현
+            // (210 ~ 245 사이의 밝은 회색값)
+            const grayIntensity = Math.floor(Math.random() * 35) + 210;
+            const baseBgColor = `rgb(${grayIntensity}, ${grayIntensity}, ${grayIntensity})`;
+
+            // 픽셀 역할을 할 a 태그(링크) 생성
+            const pixel = document.createElement('a');
+            pixel.href = `#project-fragment-${i + 1}`; // 클릭 시 이동할 임시 링크
+            
+            // Tailwind 클래스 적용 (기본 상태)
+            pixel.className = 'pixel relative block w-full h-full cursor-pointer z-10 border-[0.5px] border-white/40';
+            pixel.style.backgroundColor = baseBgColor;
+
+            // 툴팁(마우스 호버 시 우측에 뜨는 텍스트) 생성
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip absolute left-full top-1/2 -translate-y-1/2 px-4 py-2 bg-gray-900 text-cyan-400 text-xs tracking-widest whitespace-nowrap opacity-0 invisible transition-all duration-300 pointer-events-none shadow-lg border border-cyan-900 z-50';
+            tooltip.innerHTML = `PROJECT_FRAGMENT_${String(i + 1).padStart(2, '0')} <br><span class="text-[9px] text-gray-400 mt-1 block">VIEW DETAIL</span>`;
+
+            // 마우스 호버(올렸을 때) 이벤트
+            pixel.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = hoverColor;
+                this.style.transform = 'scale(1.08)'; // 살짝 커지는 효과
+                this.style.zIndex = '50'; // 다른 픽셀 위로 올라오게
+                this.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.4)'; // 청록색 빛 번짐
+                this.style.borderColor = 'transparent';
+            });
+
+            // 마우스 리브(벗어났을 때) 이벤트
+            pixel.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = baseBgColor; // 원래 회색으로 복구
+                this.style.transform = 'scale(1)';
+                this.style.zIndex = '10';
+                this.style.boxShadow = 'none';
+                this.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            });
+
+            // DOM에 추가
+            pixel.appendChild(tooltip);
+            gridContainer.appendChild(pixel);
+        }
+    </script>
+</body>
+</html>
