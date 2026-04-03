@@ -24,30 +24,19 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen relative overflow-hidden text-gray-900">
-
-    <header class="absolute top-8 left-8 select-none">
-        <h1 class="text-xl font-bold tracking-[0.15em]">[OFFICIAL ARCHIVE]</h1>
-        <p class="text-sm tracking-widest text-gray-400 mt-1">[DFA]</p>
-    </header>
+<body class="flex items-center justify-center min-h-screen relative overflow-hidden bg-white text-gray-900">
 
     <main class="relative z-10 perspective-1000">
         <div id="pixel-grid" class="grid grid-cols-8 w-[600px] h-[600px] bg-gray-100 shadow-2xl relative">
             </div>
     </main>
 
-    <footer class="absolute bottom-8 text-center w-full select-none">
-        <p class="text-xs tracking-[0.25em] text-gray-500 font-medium">
-            EXPLORE THE DATA GRID. CLICK ANY PIXEL TO NAVIGATE.
-        </p>
-    </footer>
-
    <script>
         const gridContainer = document.getElementById('pixel-grid');
         const totalPixels = 64; // 8x8 그리드
         const hoverColor = '#06b6d4'; 
 
-        // 🎯 [완성됨] 파일 디렉토리에 맞게 1~13번까지 모든 모듈 연결
+        // 파일 디렉토리에 맞게 1~13번까지 모든 모듈 연결
         const moduleMap = {
             1: { file: 'circle.html', title: '077 : PERFECT_CIRCLE' },
             2: { file: 'cursor.html', title: '013 : CURSOR_LAB' },
@@ -66,19 +55,16 @@
 
         // 페이지 이동을 처리하는 함수
         function navigateToPage(pixelIndex) {
-            // 클릭한 번호가 moduleMap에 등록되어 있는지 확인
             if (moduleMap[pixelIndex]) {
-                // 등록되어 있다면 해당 HTML 파일로 이동
                 window.location.href = `./${moduleMap[pixelIndex].file}`;
             } else {
-                // 아직 빈 칸이라면 알림창 띄우기
                 alert(`[ SYSTEM NOTICE ]\n데이터 파편 #${String(pixelIndex).padStart(2, '0')}은(는) 아직 복구 중입니다.`);
             }
         }
 
         // 64개의 픽셀 생성 루프
         for (let i = 0; i < totalPixels; i++) {
-            const pixelIndex = i + 1; // 1부터 64까지의 번호
+            const pixelIndex = i + 1;
             
             // 배경 회색조 랜덤 생성
             const grayIntensity = Math.floor(Math.random() * 35) + 210;
@@ -88,7 +74,7 @@
             pixel.className = 'pixel relative block w-full h-full cursor-pointer z-10 border-[0.5px] border-white/40';
             pixel.style.backgroundColor = baseBgColor;
 
-            // 툴팁 내용 설정 (할당된 파일이 있으면 해당 타이틀 사용, 없으면 기본 이름)
+            // 툴팁 내용 설정
             const tooltip = document.createElement('div');
             tooltip.className = 'tooltip absolute left-full top-1/2 -translate-y-1/2 px-4 py-2 bg-gray-900 text-cyan-400 text-xs tracking-widest whitespace-nowrap opacity-0 invisible transition-all duration-300 pointer-events-none shadow-lg border border-cyan-900 z-50';
             
@@ -97,7 +83,6 @@
 
             // 마우스 호버(올렸을 때) 이벤트
             pixel.addEventListener('mouseenter', function() {
-                // 연결된 모듈이 있는 칸은 청록색, 없는 칸은 약간 어두운 회색으로 반응을 다르게 줍니다.
                 this.style.backgroundColor = moduleMap[pixelIndex] ? hoverColor : '#9ca3af';
                 this.style.transform = 'scale(1.08)';
                 this.style.zIndex = '50';
