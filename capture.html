@@ -8,13 +8,12 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505; /* 푸른기 없는 완전 다크 톤 */
+            background-color: #050505;
             font-family: 'Courier New', Courier, monospace;
             color: #d1d5db;
-            cursor: crosshair; /* 캡처 도구 커서 */
+            cursor: crosshair;
         }
 
-        /* 텍스트가 화면을 가득 채우도록 설정 */
         .text-layer {
             position: fixed;
             top: 0; left: 0;
@@ -29,39 +28,36 @@
             pointer-events: none;
         }
 
-        /* 1. [가장 아래] 선명하고 깨끗하게 복구된 텍스트 레이어 */
+        /* 1. 복구된 원본 텍스트 레이어 */
         #clean-layer {
             z-index: 1;
-            color: #9ca3af; /* 차분한 회색 */
+            color: #9ca3af;
         }
 
-        /* 2. [위] 노이즈로 자글자글하게 깨진 텍스트 레이어 */
+        /* 2. 🎯 [수정됨] 지글거리는 에러 텍스트 레이어 (CSS Only) */
         #noisy-layer {
             z-index: 10;
-            color: #ef4444; /* 심각한 에러를 나타내는 붉은/주황 톤 섞기 */
-            text-shadow: 2px 0 0 blue, -2px 0 0 red; /* 글리치 색상 분리 */
+            color: #ef4444; /* 붉은색 에러 텍스트 */
             
-            /* SVG 필터를 이용해 글자 형태 자체를 일그러뜨림 */
-            filter: url(#glitch-filter);
-            
-            /* 미세하게 떨리는 애니메이션 */
-            animation: glitch-anim 0.1s infinite linear;
+            /* SVG 필터 대신 CSS 키프레임 애니메이션으로 압도적인 글리치 구현 */
+            animation: glitch-anim 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite both;
 
-            /* 🎯 핵심: 드래그한 영역(검은색)의 노이즈를 투명하게 만들어 아래의 clean-layer를 보여줌 */
+            /* 캡처한 곳을 뚫어줄 마스크는 그대로 유지 */
             -webkit-mask-image: url(#eraser-mask);
             mask-image: url(#eraser-mask);
         }
 
+        /* 🔥 [추가됨] 미친듯이 떨리고 색이 분리되는 CSS 애니메이션 */
         @keyframes glitch-anim {
-            0% { transform: translate(0, 0); opacity: 0.9; }
-            20% { transform: translate(-2px, 1px); opacity: 1; }
-            40% { transform: translate(1px, -2px); opacity: 0.8; }
-            60% { transform: translate(-1px, 2px); opacity: 1; }
-            80% { transform: translate(2px, -1px); opacity: 0.9; }
-            100% { transform: translate(0, 0); opacity: 1; }
+            0% { transform: translate(0, 0) skew(0deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 0.9; }
+            20% { transform: translate(-4px, 2px) skew(-10deg); text-shadow: -4px 0 #0ff, 4px 0 #f0f; opacity: 1; }
+            40% { transform: translate(4px, -2px) skew(10deg); text-shadow: 4px 0 #0ff, -4px 0 #f0f; filter: blur(1px); opacity: 0.8; }
+            60% { transform: translate(-2px, 4px) skew(-5deg); text-shadow: -2px 0 #0ff, 2px 0 #f0f; filter: blur(0px); opacity: 1; }
+            80% { transform: translate(2px, -4px) skew(5deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 0.9; }
+            100% { transform: translate(0, 0) skew(0deg); text-shadow: 3px 0 #0ff, -3px 0 #f0f; opacity: 1; }
         }
 
-        /* 3. [맨 위] 드래그할 때 보이는 캡처 상자 */
+        /* 3. 드래그할 때 보이는 캡처 상자 */
         #selection-box {
             position: fixed;
             border: 1px dashed #fff;
@@ -76,13 +72,10 @@
 
     <svg width="0" height="0" style="position:absolute;">
         <defs>
-            <filter id="glitch-filter">
-                <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="1" result="noise" />
-                <feDisplacementMap in="SourceGraphic" in2="noise" scale="15" xChannelSelector="R" yChannelSelector="G" />
-            </filter>
-
             <mask id="eraser-mask">
-                <rect width="100%" height="100%" fill="white" /> <g id="cleared-regions"></g> </mask>
+                <rect width="100%" height="100%" fill="white" />
+                <g id="cleared-regions"></g>
+            </mask>
         </defs>
     </svg>
 
@@ -103,7 +96,7 @@
     </div>
 
     <script>
-        // 1. 더미 텍스트 세팅 (동일한 텍스트를 두 레이어에 넣음)
+        // 1. 더미 텍스트 세팅
         const dummyText = `[ SYSTEM LOG 409-B ] WARNING: SUBSTRATE INTEGRITY COMPROMISED. \nUNAUTHORIZED ENTITY DETECTED IN SECTOR 7. INITIATING QUARANTINE PROTOCOL... FAILED. \nDATA STREAM CORRUPTED. ATTEMPTING MANUAL OVERRIDE... \n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. \n\n[ MEMORY DUMP ]\n0x00A1: FF 00 2A 4B 99 \n0x00A2: CORRUPTED_BLOCK \n0x00A3: 11 22 33 44 55 \n\n`.repeat(15);
         
         document.getElementById('clean-layer').innerText = dummyText;
@@ -164,7 +157,6 @@
             const height = Math.abs(endY - startY);
 
             if (width > 10 && height > 10) {
-                // 🎯 캡처한 영역만큼 검은 사각형을 마스크에 추가 -> 노이즈 레이어가 투명해지며 원본이 드러남
                 const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 rect.setAttribute("x", left);
                 rect.setAttribute("y", top);
