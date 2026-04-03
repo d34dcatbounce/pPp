@@ -2,28 +2,26 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Typographic Rain | DFA Archive</title>
+    <title>Physical Rain | DFA Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505; 
+            background-color: #050505;
             font-family: 'Helvetica Neue', Arial, sans-serif;
             color: #fff;
         }
 
-        /* 1. 떨어지는 '비' 글자 (타이포 파티클) */
-        .rain-char {
+        /* 1. 배경 가짜 비 (분위기용) */
+        .bg-rain {
             position: absolute;
-            color: rgba(255, 255, 255, 0.4);
-            font-weight: 200;
+            color: rgba(255, 255, 255, 0.15);
             pointer-events: none;
             z-index: 1;
-            /* 자바스크립트에서 설정한 떨어지는 시간(--fall-duration) 적용 */
             animation: textFall var(--fall-duration) linear infinite;
         }
-
         @keyframes textFall {
             0% { transform: translateY(-50px); opacity: 0; }
             10% { opacity: var(--max-opacity); }
@@ -31,140 +29,227 @@
             100% { transform: translateY(110vh); opacity: 0; }
         }
 
-        /* 2. 중앙 메인 텍스트 컨테이너 */
-        #text-container {
-            position: relative;
+        /* 2. 물리 엔진이 적용된 요소들 (글자와 물리 비) */
+        .phys-element {
+            position: absolute;
+            top: 0; left: 0; /* Matter.js가 위치를 완전히 제어함 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 300;
+            white-space: pre;
             z-index: 10;
-            text-align: center;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+            /* 중심점을 기준으로 회전하도록 설정 */
+            transform-origin: center center;
+            will-change: transform;
         }
 
-        /* 3. 중앙 문장을 구성하는 개별 글자 */
-        .target-char {
-            display: inline-block;
-            transition: opacity 0.5s ease;
-            white-space: pre; 
+        /* 중앙 문장 스타일 */
+        .target-text {
+            font-size: 28px;
+            color: #e5e7eb;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
         }
 
-        /* 4. 글자가 무너져 내리는 물리 효과 애니메이션 */
-        .crumble {
-            animation: collapse var(--duration) cubic-bezier(0.5, 0, 1, 1) forwards;
-        }
-
-        @keyframes collapse {
-            0% {
-                transform: translate(0, 0) rotate(0deg);
-                opacity: 1;
-            }
-            100% {
-                /* 랜덤하게 퍼지며(var(--rx)), 바닥(100vh)으로 회전하며(var(--rr)) 떨어짐 */
-                transform: translate(var(--rx), 100vh) rotate(var(--rr));
-                opacity: 0;
-            }
+        /* 무거운 '비' 글자 스타일 */
+        .heavy-rain {
+            font-size: 22px;
+            font-weight: 700;
+            color: #06b6d4; /* 청록색으로 눈에 띄게 */
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
         }
     </style>
 </head>
-<body class="h-screen w-screen flex items-center justify-center relative select-none">
+<body class="h-screen w-screen select-none relative">
 
-    <div id="rain-container" class="absolute inset-0 pointer-events-none"></div>
+    <div id="bg-rain-container" class="absolute inset-0 pointer-events-none"></div>
 
-    <div id="text-container" class="text-gray-200 text-2xl md:text-4xl font-light tracking-widest">
-        </div>
+    <div id="physics-container" class="absolute inset-0 pointer-events-none"></div>
 
     <div class="absolute top-8 left-8 text-gray-600 font-mono text-xs tracking-widest z-20 pointer-events-none">
-        [ 044 : TYPOGRAPHIC_RAIN ]<br>
-        STRUCTURAL_INTEGRITY: COMPROMISED
+        [ 044 : ACID_RAIN_V2 ]<br>
+        PHYSICS_ENGINE: ONLINE<br>
+        <span id="stress-level" class="text-cyan-600">STRESS_LEVEL: 0%</span>
     </div>
 
-    <button onclick="resetScene()" class="absolute bottom-8 right-8 z-20 text-[10px] font-mono font-bold border border-gray-600 text-gray-500 px-3 py-1 hover:bg-white hover:text-black transition-colors uppercase tracking-widest">
+    <button onclick="resetSystem()" class="absolute bottom-8 right-8 z-20 text-[10px] font-mono font-bold border border-gray-600 text-gray-500 px-3 py-1 hover:bg-white hover:text-black transition-colors uppercase tracking-widest clickable" style="pointer-events: auto;">
         Rebuild Structure
     </button>
 
     <script>
-        // --- 1. 중앙 문장 세팅 및 무너짐(Collapse) 로직 ---
-        const textContainer = document.getElementById('text-container');
-        const sentence = "이제부터 비가 내릴 거에요.";
-        let targetChars = [];
-        let collapseTimeout;
-
-        function buildText() {
-            textContainer.innerHTML = '';
-            targetChars = [];
-            
-            // 문장을 한 글자씩 쪼개서 span 태그로 감쌈
-            sentence.split('').forEach(char => {
-                const span = document.createElement('span');
-                span.innerText = char;
-                span.className = 'target-char';
-                textContainer.appendChild(span);
-                targetChars.push(span);
-            });
-        }
-
-        function triggerCollapse() {
-            targetChars.forEach((span) => {
-                const randomX = (Math.random() - 0.5) * 200; // 좌우 퍼짐 (-100px ~ 100px)
-                const randomRotate = (Math.random() - 0.5) * 180; // 회전 (-90도 ~ 90도)
-                const randomDuration = 1 + Math.random() * 1.5; // 추락 시간 (1~2.5초)
-                const randomDelay = Math.random() * 2000; // 지연 시간 (0~2초)
-
-                span.style.setProperty('--rx', `${randomX}px`);
-                span.style.setProperty('--rr', `${randomRotate}deg`);
-                span.style.setProperty('--duration', `${randomDuration}s`);
-
-                setTimeout(() => {
-                    span.classList.add('crumble');
-                }, randomDelay);
-            });
-        }
-
-        // --- 2. '비' 글자 파티클(Rain) 로직 ---
-        const rainContainer = document.getElementById('rain-container');
-        const totalRaindrops = 150; // 떨어지는 '비' 글자의 개수
-
-        function createRain() {
-            rainContainer.innerHTML = ''; // 기존 비 지우기
-            
-            for (let i = 0; i < totalRaindrops; i++) {
+        // --- 1. 배경 가짜 비 효과 (기존 코드 유지) ---
+        const bgRainContainer = document.getElementById('bg-rain-container');
+        function createBgRain() {
+            bgRainContainer.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
                 const drop = document.createElement('div');
-                drop.className = 'rain-char';
-                drop.innerText = '비'; // 쏟아질 글자 지정
-                
-                // 랜덤 위치 (화면 가로 100% 안에서)
-                const leftPos = Math.random() * 100;
-                // 랜덤 크기 (10px ~ 24px)
-                const fontSize = Math.random() * 14 + 10;
-                // 떨어지는 속도 (2초 ~ 5초 사이, 멀리 있는 작은 글씨일수록 느리게)
-                const fallDuration = (Math.random() * 3 + 2) + (24 / fontSize);
-                // 애니메이션 시작 딜레이 (동시에 떨어지지 않도록)
-                const delay = Math.random() * -5; // 음수로 주어 처음부터 화면에 퍼져있게 함
-                // 투명도 (멀리 있는 작은 글씨는 더 투명하게)
-                const opacity = (fontSize / 24) * 0.6 + 0.1;
-
-                drop.style.left = `${leftPos}vw`;
+                drop.className = 'bg-rain';
+                drop.innerText = '비';
+                const fontSize = Math.random() * 10 + 10;
+                drop.style.left = `${Math.random() * 100}vw`;
                 drop.style.fontSize = `${fontSize}px`;
-                drop.style.animationDelay = `${delay}s`;
-                
-                // CSS 변수로 속성값 전달
-                drop.style.setProperty('--fall-duration', `${fallDuration}s`);
-                drop.style.setProperty('--max-opacity', opacity);
-
-                rainContainer.appendChild(drop);
+                drop.style.animationDelay = `${Math.random() * -5}s`;
+                drop.style.setProperty('--fall-duration', `${Math.random() * 3 + 2}s`);
+                drop.style.setProperty('--max-opacity', (fontSize / 20) * 0.5);
+                bgRainContainer.appendChild(drop);
             }
         }
 
-        // --- 3. 씬 제어 ---
-        function resetScene() {
-            clearTimeout(collapseTimeout);
-            buildText();       // 문장 다시 세우기
-            createRain();      // 비 다시 내리게 하기
-            
-            // 3.5초간 비를 맞은 후 문장이 무너지기 시작
-            collapseTimeout = setTimeout(triggerCollapse, 3500);
+        // --- 2. 물리 엔진(Matter.js) 셋업 ---
+        const Engine = Matter.Engine,
+              Runner = Matter.Runner,
+              Bodies = Matter.Bodies,
+              Composite = Matter.Composite;
+
+        let engine, runner;
+        const physContainer = document.getElementById('physics-container');
+        let bodyMap = []; // Matter.js Body와 HTML Element를 연결하는 배열
+        let targetBodies = []; // 중앙 문장 바디들 (나중에 무너뜨리기 위해 저장)
+        let rainInterval;
+        let stressCount = 0;
+        const maxStress = 35; // 무너지기 전까지 버티는 '비'의 갯수
+
+        const sentence = "이제부터 비가 내릴 거에요.";
+        const charWidth = 32;
+        const charHeight = 40;
+
+        function initPhysics() {
+            // 기존 엔진/타이머 초기화
+            if (engine) Matter.Engine.clear(engine);
+            if (runner) Matter.Runner.stop(runner);
+            clearInterval(rainInterval);
+            physContainer.innerHTML = '';
+            bodyMap = [];
+            targetBodies = [];
+            stressCount = 0;
+            document.getElementById('stress-level').innerText = `STRESS_LEVEL: 0%`;
+
+            // 엔진 생성
+            engine = Engine.create();
+            // 중력 설정
+            engine.world.gravity.y = 1.2;
+
+            // 중앙 문장 빌드
+            const startX = (window.innerWidth - (sentence.length * charWidth)) / 2;
+            const startY = window.innerHeight * 0.5;
+
+            for (let i = 0; i < sentence.length; i++) {
+                const char = sentence[i];
+                
+                // HTML 요소 생성
+                const el = document.createElement('div');
+                el.className = 'phys-element target-text';
+                el.innerText = char;
+                el.style.width = `${charWidth}px`;
+                el.style.height = `${charHeight}px`;
+                physContainer.appendChild(el);
+
+                // 물리 바디 생성 (isStatic: true로 설정하여 공중에 고정된 선반처럼 만듦)
+                const body = Bodies.rectangle(
+                    startX + (i * charWidth) + (charWidth / 2), 
+                    startY, 
+                    charWidth - 2, // 글자 간의 미세한 틈 (마찰을 위해)
+                    charHeight, 
+                    { 
+                        isStatic: true, // ⬅️ 처음엔 고정되어 버팀
+                        friction: 0.8,  // 마찰력 (비가 미끄러지지 않게)
+                        restitution: 0.1 // 반발력 (살짝 튕김)
+                    }
+                );
+
+                Composite.add(engine.world, body);
+                targetBodies.push(body);
+                bodyMap.push({ body, el, width: charWidth, height: charHeight });
+            }
+
+            // 물리 시뮬레이션 실행기
+            runner = Runner.create();
+            Runner.run(runner, engine);
+
+            // 물리 비 내리기 시작
+            rainInterval = setInterval(spawnHeavyRain, 150);
+
+            // 렌더링 루프 (물리 엔진의 좌표를 HTML 요소에 동기화)
+            requestAnimationFrame(renderSync);
         }
 
-        // 페이지 로드 시 초기 실행
-        resetScene();
+        // 물리적 질량을 가진 '비' 생성 함수
+        function spawnHeavyRain() {
+            if(stressCount > maxStress + 10) return; // 무너지고 나면 비 생성 중단
+
+            const el = document.createElement('div');
+            el.className = 'phys-element heavy-rain';
+            el.innerText = '비';
+            
+            const rw = 22; const rh = 22;
+            el.style.width = `${rw}px`;
+            el.style.height = `${rh}px`;
+            physContainer.appendChild(el);
+
+            // 중앙 문장 바로 위 랜덤한 X 좌표에서 생성
+            const spawnX = (window.innerWidth / 2) + ((Math.random() - 0.5) * 300);
+            
+            const body = Bodies.rectangle(spawnX, -50, rw, rh, {
+                mass: 1.5, // 무게
+                friction: 0.5,
+                restitution: 0.2, // 비끼리 부딪히면 튕기도록
+                angle: Math.random() * Math.PI * 2 // 떨어질 때 초기 회전각 랜덤
+            });
+
+            Composite.add(engine.world, body);
+            bodyMap.push({ body, el, width: rw, height: rh });
+
+            stressCount++;
+            
+            // 스트레스 게이지 업데이트
+            const stressPercent = Math.min(Math.floor((stressCount / maxStress) * 100), 100);
+            const stressLabel = document.getElementById('stress-level');
+            stressLabel.innerText = `STRESS_LEVEL: ${stressPercent}%`;
+            
+            // 위험 수치 도달 시 경고 이펙트
+            if(stressPercent > 80) stressLabel.classList.add('text-red-500');
+            else stressLabel.classList.remove('text-red-500');
+
+            // 🎯 한계치에 도달하면 무너짐 트리거!
+            if (stressCount === maxStress) {
+                triggerCollapse();
+            }
+        }
+
+        // 무너짐 발동 함수
+        function triggerCollapse() {
+            document.getElementById('stress-level').innerText = `CRITICAL FAILURE!`;
+            
+            // 고정되어 있던 중앙 글자들의 isStatic을 false로 변경하여 중력의 영향을 받게 함
+            targetBodies.forEach(body => {
+                Matter.Body.setStatic(body, false);
+                // 약간의 랜덤한 폭발력(흔들림)을 부여해 더 다이나믹하게 무너지도록 함
+                Matter.Body.applyForce(body, body.position, {
+                    x: (Math.random() - 0.5) * 0.05,
+                    y: (Math.random() - 0.5) * 0.05
+                });
+            });
+        }
+
+        // Matter.js의 좌표를 HTML 요소의 CSS Transform에 동기화하는 함수
+        function renderSync() {
+            bodyMap.forEach(item => {
+                const { x, y } = item.body.position;
+                // 중심점을 기준으로 이동 및 회전
+                item.el.style.transform = `translate(${x - item.width/2}px, ${y - item.height/2}px) rotate(${item.body.angle}rad)`;
+            });
+            requestAnimationFrame(renderSync);
+        }
+
+        // 씬 리셋
+        function resetSystem() {
+            createBgRain();
+            initPhysics();
+        }
+
+        // 초기 로드
+        resetSystem();
 
     </script>
 </body>
