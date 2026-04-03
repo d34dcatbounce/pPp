@@ -8,148 +8,170 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #ffffff; /* 흰 배경 */
-            /* 🎯 기본 커서 투명화 (숨김) */
-            cursor: none; 
+            background-color: #ffffff; /* 흰색 배경 */
+            cursor: none; /* 시스템 커서 완전 숨김 */
         }
 
-        /* 아스키아트가 가득 찰 컨테이너 */
-        #ascii-container {
+        /* 아스키 텍스트가 렌더링될 메인 그리드 */
+        #grid {
             position: fixed;
             top: 0; left: 0;
             width: 100vw; height: 100vh;
-            color: #000000; /* 검은 글자 */
+            margin: 0; padding: 0;
+            
+            /* 타자기에 쓰이는 고정폭 폰트 적용 (정렬을 위해 필수) */
             font-family: 'Courier New', Courier, monospace;
             font-size: 14px;
-            line-height: 14px;
+            line-height: 14px; /* 글자 간격 세밀하게 조정 */
             letter-spacing: 2px;
             
-            /* 줄바꿈을 허용하여 화면을 꽉 채우도록 설정 */
-            word-break: break-all; 
-            white-space: normal;
-            pointer-events: none; /* 텍스트 선택 방지 */
-            
-            /* 🎯 [핵심] CSS 마스크: 자바스크립트가 전달한 --x, --y 좌표에만 40px 크기의 뚜렷한 원형 구멍을 뚫어 아스키아트를 보여줌 */
-            -webkit-mask-image: radial-gradient(circle 45px at var(--x, -100px) var(--y, -100px), black 100%, transparent 100%);
-            mask-image: radial-gradient(circle 45px at var(--x, -100px) var(--y, -100px), black 100%, transparent 100%);
+            color: #000000; /* 검은색 글자 */
+            white-space: pre; /* 줄바꿈 및 띄어쓰기 그대로 유지 */
+            pointer-events: none; /* 드래그 방지 */
+            user-select: none;
         }
 
-        /* 상단 UI 라벨 */
-        #header-label {
+        /* UI 오버레이 (텍스트 그리드와 구별되도록 약간의 투명도 부여) */
+        #ui-layer {
             position: absolute;
-            top: 12px; left: 12px;
-            color: #9ca3af; /* 회색 텍스트 */
-            font-size: 14px;
-            letter-spacing: 0.15em;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        /* 하단 태그라인 */
-        #tagline {
-            position: absolute;
-            bottom: 20px; left: 50%;
-            transform: translateX(-50%);
-            color: #9ca3af;
-            font-size: 14px;
-            letter-spacing: 0.1em;
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        /* 마우스를 따라다니는 청록색(Cyan) 정보 라벨 */
-        #floating-label {
-            position: fixed;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            z-index: 30;
-            color: #06b6d4; /* 청록색 */
-            font-size: 10px;
-            letter-spacing: 0.1em;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            top: 32px; left: 32px;
             font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+            color: #4b5563; /* 회색 */
+            pointer-events: none;
+            z-index: 50;
         }
     </style>
 </head>
-<body class="h-screen w-screen relative select-none">
+<body class="h-screen w-screen relative">
 
-    <div id="ascii-container"></div>
-
-    <div id="header-label">
-        [OFFICIAL ARCHIVE]<br>
-        [DFA]
+    <div id="ui-layer">
+        [ 088 : ASCII_CURSOR ]<br>
+        RENDER_MODE: REALTIME_TEXT_OVERRIDE<br>
+        <span id="coord" class="text-black font-bold">COORD: [0, 0]</span>
     </div>
 
-    <div id="tagline" class="uppercase">
-        ASCII DATA IS ONLY VISIBLE WITHIN THE CURSOR BOUNDARY.
-    </div>
-
-    <div id="floating-label">
-        <span id="coord-x">X: ?</span>
-        <span id="coord-y">Y: ?</span>
-        <span class="mt-1 font-bold">FRAG_088</span>
-    </div>
+    <pre id="grid"></pre>
 
     <script>
-        const asciiContainer = document.getElementById('ascii-container');
-        const floatingLabel = document.getElementById('floating-label');
-        const coordXLabel = document.getElementById('coord-x');
-        const coordYLabel = document.getElementById('coord-y');
+        const gridEl = document.getElementById('grid');
+        const coordEl = document.getElementById('coord');
 
-        // 사용할 아스키 문자셋 (밀도가 다른 문자들 섞기)
-        const charSet = ['.', ',', ';', ':', '(', ')', '[', ']', '{', '}', '<', '>', '/', '\\', '|', '_', '+', '-', '*', '&', '%', '#', '@'];
+        let charW, charH;
+        let cols, rows;
+        let baseGrid = []; // 기본 배경 아스키 지형을 담을 2차원 배열
 
-        // 화면을 아스키아트로 가득 채우는 함수 (최초 1회만 실행하여 성능 극대화)
-        function generateBackgroundText() {
-            // 글자 하나의 대략적인 픽셀 면적 (폰트 사이즈와 자간 고려)
-            const charArea = 14 * 16; 
-            const screenArea = window.innerWidth * window.innerHeight;
-            // 화면을 덮고도 남을 만큼 충분한 글자 수 계산
-            const totalCharsNeeded = Math.ceil(screenArea / charArea) + 1000; 
+        // 🎯 커서 역할을 할 아스키 아트 형태 (블록 문자로 뚜렷하게 표현)
+        // 뒤에 띄어쓰기(공백)를 넣어 배경 도면 선을 지우면서 이동하게 함
+        const cursorArt = [
+            "◢         ",
+            "██◣       ",
+            "███◣      ",
+            "████◣     ",
+            "█████◣    ",
+            "██████◣   ",
+            "███▀▀▀▀   ",
+            "███       ",
+            "█ █◣      ",
+            "▀  █      ",
+            "   ▀      "
+        ];
 
-            let randomString = '';
-            for (let i = 0; i < totalCharsNeeded; i++) {
-                const randomChar = charSet[Math.floor(Math.random() * charSet.length)];
-                randomString += randomChar;
-            }
-            
-            // 컨테이너에 한 번에 텍스트 삽입
-            asciiContainer.textContent = randomString;
+        // 1. 초기 세팅: 브라우저 환경에 맞는 정확한 글자 크기(폭) 측정
+        function init() {
+            const span = document.createElement('span');
+            span.style.fontFamily = "'Courier New', Courier, monospace";
+            span.style.fontSize = '14px';
+            span.style.letterSpacing = '2px';
+            span.innerText = 'X';
+            document.body.appendChild(span);
+            charW = span.getBoundingClientRect().width;
+            charH = 14; // CSS의 line-height와 동일하게
+            document.body.removeChild(span);
+
+            resize();
         }
 
-        // 초기 생성
-        generateBackgroundText();
+        // 2. 화면 크기에 맞게 그리드(행/열) 생성 및 배경 도면 그리기
+        function resize() {
+            cols = Math.floor(window.innerWidth / charW);
+            rows = Math.floor(window.innerHeight / charH) + 1;
+            
+            baseGrid = [];
+            for (let r = 0; r < rows; r++) {
+                let row = [];
+                for (let c = 0; c < cols; c++) {
+                    // 배경에 아카이브 도면 같은 선과 기호 생성
+                    if (r % 6 === 0 && c % 16 === 0) row.push('+');
+                    else if (r % 6 === 0) row.push('-');
+                    else if (c % 16 === 0) row.push('|');
+                    else {
+                        // 중간중간 노이즈성 데이터 삽입
+                        const rand = Math.random();
+                        if (rand < 0.01) row.push('.');
+                        else if (rand < 0.005) row.push('x');
+                        else row.push(' ');
+                    }
+                }
+                baseGrid.push(row);
+            }
+            // 초기 렌더링 (커서는 안 보이게 화면 밖 좌표 전달)
+            render(-100, -100);
+        }
 
-        // 창 크기가 바뀔 때 혹시 텍스트가 모자라지 않게 다시 채움
-        window.addEventListener('resize', generateBackgroundText);
+        // 3. 🎯 [핵심] 실시간 텍스트 교체 렌더링 로직
+        function render(mouseX, mouseY) {
+            // 마우스 픽셀 좌표를 텍스트 행/열 좌표로 변환
+            let cX = Math.floor(mouseX / charW);
+            let cY = Math.floor(mouseY / charH) - 1; // 커서 끝점을 마우스에 맞추기 위한 미세 보정
 
-        // 🎯 [핵심] 마우스 이동 시 CSS 마스크 좌표 실시간 업데이트
+            let output = [];
+            
+            // 전체 그리드를 돌면서 글자 조립
+            for (let r = 0; r < rows; r++) {
+                let rowStr = '';
+                for (let c = 0; c < cols; c++) {
+                    // 현재 위치가 아스키 커서 아트의 범위 안인지 확인
+                    let curR = r - cY;
+                    let curC = c - cX;
+                    
+                    if (curR >= 0 && curR < cursorArt.length && curC >= 0 && curC < cursorArt[0].length) {
+                        // 커서 형태에 해당하는 글자로 교체 (Override)
+                        rowStr += cursorArt[curR][curC];
+                    } else {
+                        // 범위 밖이라면 기본 배경 도면 출력
+                        rowStr += baseGrid[r][c];
+                    }
+                }
+                output.push(rowStr);
+            }
+
+            // 완성된 수만 개의 글자를 화면에 단 한 번에 업데이트 (성능 최적화)
+            gridEl.textContent = output.join('\n');
+            coordEl.textContent = `COORD: [${cX}, ${cY}]`;
+        }
+
+        // 4. 마우스 이동 추적 (requestAnimationFrame으로 60프레임 최적화)
+        let isUpdating = false;
+        let mX = -100, mY = -100;
+        
         document.addEventListener('mousemove', (e) => {
-            const x = e.clientX;
-            const y = e.clientY;
-
-            // CSS 변수(--x, --y)에 마우스 좌표 전달 -> 마스크 위치 이동
-            asciiContainer.style.setProperty('--x', `${x}px`);
-            asciiContainer.style.setProperty('--y', `${y}px`);
-
-            // 플로팅 라벨 위치 업데이트
-            coordXLabel.innerText = `X: ${x}`;
-            coordYLabel.innerText = `Y: ${y}`;
-
-            // 라벨을 커서 바로 옆에 따라다니게 설정
-            floatingLabel.style.left = `${x + 60}px`;
-            floatingLabel.style.top = `${y - 20}px`;
-            floatingLabel.style.opacity = '1';
+            mX = e.clientX;
+            mY = e.clientY;
+            
+            if (!isUpdating) {
+                requestAnimationFrame(() => {
+                    render(mX, mY);
+                    isUpdating = false;
+                });
+                isUpdating = true;
+            }
         });
 
-        // 마우스가 화면 밖으로 나가면 라벨 숨김
-        document.addEventListener('mouseleave', () => {
-            floatingLabel.style.opacity = '0';
-        });
-
+        // 이벤트 바인딩 및 시작
+        window.addEventListener('resize', resize);
+        init();
     </script>
 </body>
 </html>
