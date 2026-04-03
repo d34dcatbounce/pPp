@@ -2,107 +2,114 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Noise Eraser | DFA Archive</title>
+    <title>Data Recovery | DFA Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #050505;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #050505; /* 푸른기 없는 완전 다크 톤 */
+            font-family: 'Courier New', Courier, monospace;
             color: #d1d5db;
-            /* 캡처 도구 느낌을 위한 십자선 커서 */
-            cursor: crosshair;
+            cursor: crosshair; /* 캡처 도구 커서 */
         }
 
-        /* 1. [가장 아래] 숨겨진 기밀 데이터 레이어 */
-        #secret-data {
+        /* 텍스트가 화면을 가득 채우도록 설정 */
+        .text-layer {
             position: fixed;
-            inset: 0;
-            background-color: #0f172a; /* 짙은 네이비 배경 */
-            /* 도면 같은 모눈종이 패턴 */
-            background-image: 
-                linear-gradient(rgba(6, 182, 212, 0.2) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(6, 182, 212, 0.2) 1px, transparent 1px);
-            background-size: 40px 40px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            padding: 40px;
+            box-sizing: border-box;
+            font-size: 14px;
+            line-height: 1.6;
+            letter-spacing: 0.1em;
+            word-break: break-all;
+            white-space: pre-wrap;
+            pointer-events: none;
+        }
+
+        /* 1. [가장 아래] 선명하고 깨끗하게 복구된 텍스트 레이어 */
+        #clean-layer {
             z-index: 1;
+            color: #9ca3af; /* 차분한 회색 */
         }
 
-        /* 2. [중간] 화면을 덮고 있는 노이즈 레이어 */
-        #noise-layer {
-            position: fixed;
-            inset: 0;
+        /* 2. [위] 노이즈로 자글자글하게 깨진 텍스트 레이어 */
+        #noisy-layer {
             z-index: 10;
-            /* SVG 필터를 이용한 TV 노이즈(Static) 생성 */
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            opacity: 0.9;
-            /* 자글자글한 애니메이션 효과 */
-            animation: noiseJitter 0.2s infinite linear;
+            color: #ef4444; /* 심각한 에러를 나타내는 붉은/주황 톤 섞기 */
+            text-shadow: 2px 0 0 blue, -2px 0 0 red; /* 글리치 색상 분리 */
             
-            /* 🎯 핵심: SVG 마스크 적용 (검은색으로 칠해진 곳만 투명해짐) */
+            /* SVG 필터를 이용해 글자 형태 자체를 일그러뜨림 */
+            filter: url(#glitch-filter);
+            
+            /* 미세하게 떨리는 애니메이션 */
+            animation: glitch-anim 0.1s infinite linear;
+
+            /* 🎯 핵심: 드래그한 영역(검은색)의 노이즈를 투명하게 만들어 아래의 clean-layer를 보여줌 */
             -webkit-mask-image: url(#eraser-mask);
             mask-image: url(#eraser-mask);
-            pointer-events: none; /* 클릭 방해 안 하게 설정 */
         }
 
-        @keyframes noiseJitter {
-            0% { transform: translate(0, 0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(2px, -2px); }
-            60% { transform: translate(-2px, -2px); }
-            80% { transform: translate(2px, 2px); }
-            100% { transform: translate(0, 0); }
+        @keyframes glitch-anim {
+            0% { transform: translate(0, 0); opacity: 0.9; }
+            20% { transform: translate(-2px, 1px); opacity: 1; }
+            40% { transform: translate(1px, -2px); opacity: 0.8; }
+            60% { transform: translate(-1px, 2px); opacity: 1; }
+            80% { transform: translate(2px, -1px); opacity: 0.9; }
+            100% { transform: translate(0, 0); opacity: 1; }
         }
 
-        /* 3. [맨 위] 드래그할 때 보이는 선택 영역 상자 */
+        /* 3. [맨 위] 드래그할 때 보이는 캡처 상자 */
         #selection-box {
             position: fixed;
             border: 1px dashed #fff;
             background-color: rgba(255, 255, 255, 0.1);
             z-index: 50;
-            pointer-events: none; /* 드래그 중 마우스 이벤트를 가로채지 않게 */
-            display: none; /* 평소엔 숨김 */
+            pointer-events: none;
+            display: none;
         }
     </style>
 </head>
 <body class="select-none h-screen w-screen relative">
 
-    <div id="secret-data">
-        <h1 class="text-6xl font-black text-cyan-500 tracking-[0.2em] mb-4 opacity-80" style="text-shadow: 0 0 20px rgba(6,182,212,0.5);">RESTRICTED</h1>
-        <p class="text-cyan-800 font-mono text-xl tracking-widest uppercase text-center max-w-2xl leading-relaxed">
-            Project_Fragment_056 contains classified blueprints.<br>
-            Unauthorized access is strictly prohibited.
-        </p>
-    </div>
-
     <svg width="0" height="0" style="position:absolute;">
         <defs>
+            <filter id="glitch-filter">
+                <feTurbulence type="fractalNoise" baseFrequency="0.15" numOctaves="1" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="15" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+
             <mask id="eraser-mask">
-                <rect width="100%" height="100%" fill="white" />
-                <g id="cleared-regions"></g>
-            </mask>
+                <rect width="100%" height="100%" fill="white" /> <g id="cleared-regions"></g> </mask>
         </defs>
     </svg>
 
-    <div id="noise-layer"></div>
+    <div id="clean-layer" class="text-layer"></div>
+
+    <div id="noisy-layer" class="text-layer"></div>
 
     <div id="selection-box"></div>
 
-    <div class="absolute top-12 left-12 text-gray-400 font-mono text-xs tracking-widest z-40 pointer-events-none">
-        [ 056 : NOISE_ERASER ]<br>
-        DATA_CORRUPTION: HIGH<br>
-        <span id="cleared-count" class="text-cyan-400">CLEARED_REGIONS: 0</span>
+    <div class="absolute top-8 left-8 text-white font-mono text-xs tracking-widest z-40 bg-black/80 px-2 py-1 pointer-events-none border border-gray-800">
+        [ 056 : DATA_RECOVERY ]<br>
+        CORRUPTION_LEVEL: CRITICAL<br>
+        <span id="cleared-count" class="text-cyan-400">RECOVERED_SECTORS: 0</span>
     </div>
     
-    <div class="absolute bottom-12 left-12 text-gray-500 font-mono text-[10px] tracking-widest z-40 pointer-events-none uppercase">
-        Click and drag to isolate and delete noise interference.
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white font-mono text-[10px] tracking-widest z-40 bg-black/80 px-4 py-2 pointer-events-none uppercase border border-gray-800">
+        DRAG TO ISOLATE AND RECOVER CORRUPTED DATA BLOCKS.
     </div>
 
     <script>
+        // 1. 더미 텍스트 세팅 (동일한 텍스트를 두 레이어에 넣음)
+        const dummyText = `[ SYSTEM LOG 409-B ] WARNING: SUBSTRATE INTEGRITY COMPROMISED. \nUNAUTHORIZED ENTITY DETECTED IN SECTOR 7. INITIATING QUARANTINE PROTOCOL... FAILED. \nDATA STREAM CORRUPTED. ATTEMPTING MANUAL OVERRIDE... \n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. \n\n[ MEMORY DUMP ]\n0x00A1: FF 00 2A 4B 99 \n0x00A2: CORRUPTED_BLOCK \n0x00A3: 11 22 33 44 55 \n\n`.repeat(15);
+        
+        document.getElementById('clean-layer').innerText = dummyText;
+        document.getElementById('noisy-layer').innerText = dummyText;
+
+        // 2. 캡처 도구 로직
         const selectionBox = document.getElementById('selection-box');
         const clearedRegions = document.getElementById('cleared-regions');
         const clearedCountDisplay = document.getElementById('cleared-count');
@@ -112,16 +119,13 @@
         let startY = 0;
         let clearCount = 0;
 
-        // 1. 마우스 누름 (드래그 시작)
         document.addEventListener('mousedown', (e) => {
-            // 좌클릭만 허용
             if (e.button !== 0) return;
             
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
 
-            // 선택 상자 위치 초기화 및 표시
             selectionBox.style.left = `${startX}px`;
             selectionBox.style.top = `${startY}px`;
             selectionBox.style.width = '0px';
@@ -129,35 +133,28 @@
             selectionBox.style.display = 'block';
         });
 
-        // 2. 마우스 이동 (선택 영역 그리기)
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
 
             const currentX = e.clientX;
             const currentY = e.clientY;
 
-            // 마우스를 시작점보다 왼쪽/위로 드래그할 때를 대비한 계산 (Math.min, Math.max 사용)
             const left = Math.min(startX, currentX);
             const top = Math.min(startY, currentY);
             const width = Math.abs(currentX - startX);
             const height = Math.abs(currentY - startY);
 
-            // 선택 상자 CSS 업데이트
             selectionBox.style.left = `${left}px`;
             selectionBox.style.top = `${top}px`;
             selectionBox.style.width = `${width}px`;
             selectionBox.style.height = `${height}px`;
         });
 
-        // 3. 마우스 뗌 (노이즈 삭제 실행)
         document.addEventListener('mouseup', (e) => {
             if (!isDragging) return;
             isDragging = false;
-
-            // 선택 상자 숨기기
             selectionBox.style.display = 'none';
 
-            // 최종 영역 계산
             const endX = e.clientX;
             const endY = e.clientY;
             
@@ -166,21 +163,19 @@
             const width = Math.abs(endX - startX);
             const height = Math.abs(endY - startY);
 
-            // 🎯 [핵심] 드래그한 영역이 너무 작으면(클릭 수준이면) 무시
             if (width > 10 && height > 10) {
-                // SVG 마스크에 검은색 사각형(rect) 추가 -> 노이즈 레이어에 구멍이 뚫림!
+                // 🎯 캡처한 영역만큼 검은 사각형을 마스크에 추가 -> 노이즈 레이어가 투명해지며 원본이 드러남
                 const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 rect.setAttribute("x", left);
                 rect.setAttribute("y", top);
                 rect.setAttribute("width", width);
                 rect.setAttribute("height", height);
-                rect.setAttribute("fill", "black"); // 검은색 = 투명화
+                rect.setAttribute("fill", "black");
                 
                 clearedRegions.appendChild(rect);
 
-                // 상태 업데이트
                 clearCount++;
-                clearedCountDisplay.innerText = `CLEARED_REGIONS: ${clearCount}`;
+                clearedCountDisplay.innerText = `RECOVERED_SECTORS: ${clearCount}`;
             }
         });
     </script>
