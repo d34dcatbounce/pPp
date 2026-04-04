@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Concrete Rose | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden; /* 세로 스크롤 방지 */
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* 가로로 길게 늘어지는 트랙 */
+        #horizontal-track {
+            display: flex;
+            align-items: flex-end; /* 건물들이 바닥에 붙도록 */
+            height: 100vh;
+            width: fit-content; /* 내용물만큼 길어짐 */
+            padding-left: 10vw;
+            padding-right: 100vw; /* 마지막 건물 이후 여백 */
+            transition: transform 0.1s ease-out;
+            will-change: transform;
+        }
+
+        /* 건물의 기본 스타일 */
+        .building {
+            flex-shrink: 0;
+            background-color: #1a1a1a;
+            border-left: 1px solid #333;
+            border-right: 1px solid #000;
+            position: relative;
+            margin-right: 2px;
+            /* 창문 패턴 (노이즈) */
+            background-image: radial-gradient(#262626 1px, transparent 1px);
+            background-size: 20px 30px;
+        }
+
+        /* 🎯 숨겨진 장미 */
+        #the-rose {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: pointer;
+            z-index: 50;
+            filter: drop-shadow(0 0 10px #f43f5e);
+            transition: transform 0.3s ease;
+        }
+
+        #the-rose:hover {
+            transform: translateX(-50%) scale(1.5);
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: fixed;
+            top: 32px; left: 32px;
+            color: #4b5563;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        #scroll-guide {
+            position: fixed;
+            bottom: 32px; right: 32px;
+            color: #262626;
+            font-size: 10px;
+            letter-spacing: 0.5em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="text-xs tracking-[0.2em] mb-1">[ 025 : CONCRETE_ROSE ]</div>
+        <div class="text-[10px] tracking-widest opacity-50">LOCATION: URBAN_DESERT_09</div>
+        <div class="mt-8 text-gray-200 text-sm tracking-tighter opacity-80">"건물 사이에 피어난 장미"</div>
+    </div>
+
+    <div id="scroll-guide">Use Mouse Wheel to Navigate</div>
+
+    <div id="horizontal-track">
+        </div>
+
+    <script>
+        const track = document.getElementById('horizontal-track');
+        const buildingCount = 150; // 약 150개의 건물을 생성
+        const rosePosition = Math.floor(Math.random() * 100) + 30; // 30번째~130번째 건물 사이 랜덤 위치
+
+        // 1. 빌딩 숲 생성
+        for (let i = 0; i < buildingCount; i++) {
+            const b = document.createElement('div');
+            b.className = 'building';
+            
+            // 건물의 높이와 폭을 랜덤하게 설정 (삭막한 느낌)
+            const h = Math.floor(Math.random() * 60) + 30; // 30vh ~ 90vh
+            const w = Math.floor(Math.random() * 80) + 40; // 40px ~ 120px
+            
+            b.style.height = h + 'vh';
+            b.style.width = w + 'px';
+
+            // 🎯 특정 위치에 장미 숨기기
+            if (i === rosePosition) {
+                const rose = document.createElement('div');
+                rose.id = 'the-rose';
+                // SVG로 장미(하트 응용) 표현
+                rose.innerHTML = `
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#f43f5e">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                `;
+                rose.onclick = () => {
+                    alert("[ SYSTEM ] 탈출 경로를 발견했습니다.");
+                    window.location.href = 'index.html'; // 메인으로 복귀
+                };
+                b.appendChild(rose);
+                // 장미가 있는 건물은 틈을 조금 더 벌림
+                b.style.marginRight = '10px';
+            }
+
+            track.appendChild(b);
+        }
+
+        // 2. 🎯 [핵심] 휠 이벤트를 가로 스크롤로 변환
+        let scrollPos = 0;
+        const maxScroll = track.offsetWidth - window.innerWidth;
+
+        window.addEventListener('wheel', (e) => {
+            // 세로 휠 양(deltaY)만큼 가로 위치 이동
+            scrollPos += e.deltaY;
+            
+            // 범위 제한
+            if (scrollPos < 0) scrollPos = 0;
+            // 여기서 maxScroll은 실행 시점에 다시 계산하는 것이 정확함
+            const currentMax = track.scrollWidth - window.innerWidth;
+            if (scrollPos > currentMax) scrollPos = currentMax;
+
+            // 트랙 이동
+            track.style.transform = `translateX(-${scrollPos}px)`;
+        });
+
+    </script>
+</body>
+</html>
