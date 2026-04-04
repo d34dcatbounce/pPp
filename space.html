@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sella: Spatial Archive</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: black; touch-action: none; cursor: crosshair; }
+        #overlay {
+            position: fixed; top: 30px; left: 30px;
+            color: #00ff00; font-family: monospace; font-size: 12px;
+            z-index: 100; pointer-events: none; text-transform: uppercase; line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay">
+        [ SYSTEM: SPATIAL_CONSTRUCTION_COMPLETE ]<br>
+        TYPE: RECURSIVE_INTERACTION_ZONE<br>
+        INTERACT: SCAN_TO_REVEAL_STRUCTURE
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { AsciiEffect } from 'three/addons/effects/AsciiEffect.js';
+
+        let scene, camera, renderer, effect, spotLight;
+        let lon = 0, lat = 0, phi = 0, theta = 0;
+        let isDragging = false;
+        let prevX = 0, prevY = 0;
+
+        init();
+        animate();
+
+        function init() {
+            scene = new THREE.Scene();
+            
+            // 1. 안개(Fog) 추가: 멀리 있는 조형물이 아스라히 사라지며 공간의 깊이감을 만듭니다.
+            scene.fog = new THREE.FogExp2(0x000000, 0.035);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.target = new THREE.Vector3(0, 0, 0);
+
+            // 2. 바닥 그리드(Floor): 내가 서 있는 위치를 인지하게 해주는 가장 중요한 요소
+            const gridHelper = new THREE.GridHelper(200, 40, 0x00ff00, 0x222222);
+            gridHelper.position.y = -10;
+            scene.add(gridHelper);
+
+            // 3. 다양한 건축적 조형물 배치
+            const addStructure = (geo, x, y, z) => {
+                const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, y, z);
+                mesh.rotation.y = Math.random() * Math.PI;
+                scene.add(mesh);
+            };
+
+            // 거대한 기둥들과 방 형태의 구조물
+            for (let i = 0; i < 40; i++) {
+                const h = 5 + Math.random() * 20;
+                addStructure(new THREE.BoxGeometry(2, h, 2), (Math.random()-0.5)*100, h/2 - 10, (Math.random()-0.5)*100);
+                addStructure(new THREE.TorusKnotGeometry(1.5, 0.4), (Math.random()-0.5)*80, Math.random()*20, (Math.random()-0.5)*80);
+            }
+
+            // 4. 인터랙티브 조명 (코알라 사이트처럼 마우스/시선이 가는 곳을 비춤)
+            spotLight = new THREE.SpotLight(0xffffff, 2000);
+            spotLight.angle = Math.PI / 6;
+            spotLight.penumbra = 0.3;
+            scene.add(spotLight);
+            scene.add(spotLight.target);
+
+            const ambient = new THREE.AmbientLight(0x111111); // 아주 어두운 기본광
+            scene.add(ambient);
+
+            renderer = new THREE.WebGLRenderer();
+            effect = new AsciiEffect(renderer, ' .:-+*=%@#', { invert: true });
+            effect.setSize(window.innerWidth, window.innerHeight);
+            effect.domElement.style.color = '#00ff00';
+            effect.domElement.style.backgroundColor = 'black';
+            document.body.appendChild(effect.domElement);
+
+            window.addEventListener('pointerdown', (e) => { isDragging = true; prevX = e.clientX; prevY = e.clientY; });
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', () => isDragging = false);
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onPointerMove(e) {
+            if (isDragging) {
+                lon = (prevX - e.clientX) * 0.15 + lon;
+                lat = (e.clientY - prevY) * 0.15 + lat;
+                prevX = e.clientX;
+                prevY = e.clientY;
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            effect.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            lat = Math.max(-89.9, Math.min(89.9, lat));
+            phi = THREE.MathUtils.degToRad(90 - lat);
+            theta = THREE.MathUtils.degToRad(lon);
+
+            camera.target.set(
+                Math.sin(phi) * Math.cos(theta),
+                Math.cos(phi),
+                Math.sin(phi) * Math.sin(theta)
+            );
+            camera.lookAt(camera.target);
+
+            // 조명이 항상 카메라 시선을 따라가며 공간을 "탐사"하는 느낌 부여
+            spotLight.position.copy(camera.position);
+            spotLight.target.position.copy(camera.target).multiplyScalar(10);
+
+            effect.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
