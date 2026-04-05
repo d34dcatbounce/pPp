@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>ASCII Topography | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 완전 다크 톤 */
+            cursor: crosshair;
+        }
+
+        /* 아스키 텍스트가 렌더링될 메인 그리드 */
+        #grid {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            margin: 0; padding: 0;
+            
+            /* 타자기 폰트로 고정폭 유지 */
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 14px;
+            letter-spacing: 2px;
+            
+            /* 형광등이 꺼진 듯한 칙칙한 청록/회색 톤 */
+            color: #4b5563; 
+            white-space: pre; 
+            pointer-events: none; 
+            user-select: none;
+        }
+
+        /* UI 오버레이 */
+        #ui-layer {
+            position: absolute;
+            top: 32px; left: 32px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+            color: #9ca3af;
+            pointer-events: none;
+            z-index: 50;
+            background-color: rgba(5, 5, 5, 0.8); 
+            padding: 10px;
+            border: 1px solid #1f2937;
+        }
+
+        #status-text {
+            color: #06b6d4;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative select-none">
+
+    <div id="ui-layer">
+        [ 089 : ASCII_TOPOGRAPHY ]<br>
+        RENDER_MODE: VISUAL_DENSITY_MAPPING<br>
+        <div id="status-text">WAVE_SYNC: ACTIVE</div>
+    </div>
+
+    <pre id="grid"></pre>
+
+    <div class="absolute bottom-8 w-full text-center text-gray-600 font-mono text-[10px] tracking-widest z-40 pointer-events-none uppercase">
+        Move cursor to alter typographical elevation.
+    </div>
+
+    <script>
+        const gridEl = document.getElementById('grid');
+        const statusEl = document.getElementById('status-text');
+
+        let charW, charH;
+        let cols, rows;
+
+        // 🎯 밀도에 따른 문자 배열 (가벼움 -> 무거움)
+        // 픽셀이 많이 채워질수록 배열의 뒤쪽에 위치합니다.
+        const densityChars = ['.', ',', ':', ';', 'c', 'o', 'O', '8', '&', '@', '█'];
+        const maxCharIdx = densityChars.length - 1;
+
+        // 마우스 좌표 (초기값은 화면 중앙)
+        let mX = window.innerWidth / 2;
+        let mY = window.innerHeight / 2;
+        
+        let time = 0;
+
+        // 1. 브라우저 환경에 맞는 정확한 글자 크기(폭) 측정
+        function init() {
+            const span = document.createElement('span');
+            span.style.fontFamily = "'Courier New', Courier, monospace";
+            span.style.fontSize = '14px';
+            span.style.letterSpacing = '2px';
+            span.innerText = 'X';
+            document.body.appendChild(span);
+            charW = span.getBoundingClientRect().width;
+            charH = 14; 
+            document.body.removeChild(span);
+
+            resize();
+            requestAnimationFrame(render);
+        }
+
+        // 2. 화면 크기에 맞게 그리드 열/행 개수 계산
+        function resize() {
+            cols = Math.floor(window.innerWidth / charW);
+            rows = Math.floor(window.innerHeight / charH) + 1;
+        }
+
+        window.addEventListener('resize', resize);
+
+        // 마우스 이동 추적
+        document.addEventListener('mousemove', (e) => {
+            mX = e.clientX;
+            mY = e.clientY;
+            statusEl.innerText = `ELEVATION_CENTER: [${Math.floor(mX)}, ${Math.floor(mY)}]`;
+        });
+
+        // 3. 🎯 핵심: 3D 파동 렌더링 로직
+        function render() {
+            time += 0.15; // 파동의 속도
+            let output = [];
+            
+            // 파동의 영향력이 미치는 최대 반경
+            const maxRadius = 400;
+
+            for (let r = 0; r < rows; r++) {
+                let rowStr = '';
+                for (let c = 0; c < cols; c++) {
+                    // 현재 글자 셀의 실제 픽셀 좌표 계산
+                    const cellX = c * charW;
+                    const cellY = r * charH;
+
+                    // 마우스와 현재 셀 사이의 거리
+                    const dx = cellX - mX;
+                    const dy = cellY - mY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    // 마우스에서 멀어질수록 파동의 진폭(영향력)이 감소하도록 설정
+                    let influence = Math.max(0, 1 - (dist / maxRadius));
+
+                    // 거리와 시간을 이용해 동심원 사인(Sine) 파동 생성 (-1 ~ 1)
+                    // dist * 0.05 는 파동의 촘촘함을 결정
+                    const wave = Math.sin(dist * 0.05 - time);
+
+                    // 파동 값을 0 ~ 1 사이로 정규화하고 영향력(influence)을 곱함
+                    const normalizedWave = (wave * 0.5 + 0.5) * influence;
+
+                    // 값을 문자 배열의 인덱스로 변환
+                    // 영향력이 0이면 무조건 0번 인덱스('.') 출력
+                    let charIdx = Math.floor(normalizedWave * maxCharIdx);
+                    
+                    rowStr += densityChars[charIdx];
+                }
+                output.push(rowStr);
+            }
+
+            // 완성된 문자열을 한 번에 DOM에 삽입 (성능 최적화)
+            gridEl.textContent = output.join('\n');
+            
+            // 다음 프레임 호출
+            requestAnimationFrame(render);
+        }
+
+        init();
+    </script>
+</body>
+</html>
