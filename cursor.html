@@ -2,100 +2,158 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Cursor Lab | DFA Archive</title>
+    <title>Typo Cursor | DFA Archive</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 커서가 실제로 적용될 영역 (전체 화면) */
         body {
-            transition: cursor 0.2s ease;
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+            color: #9ca3af;
+            cursor: none; /* 🎯 브라우저 기본 커서 완전 삭제 */
         }
-        
-        /* 커서 예시 카드 스타일 */
+
+        /* 🎯 아스키 커서 (마우스를 따라다니는 텍스트) */
+        #custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            white-space: pre;
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+
+        /* 아스키 선택 카드 스타일 */
         .cursor-card {
             transition: all 0.2s ease;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #1f2937; /* 어두운 회색 테두리 */
+            background-color: transparent;
+            cursor: none;
         }
+        
         .cursor-card:hover {
-            background-color: #f9fafb;
-            transform: translateY(-2px);
+            background-color: rgba(6, 182, 212, 0.05);
             border-color: #06b6d4;
+            color: #06b6d4;
         }
+
         .active-cursor {
-            background-color: #ecfeff !important;
+            background-color: rgba(6, 182, 212, 0.1) !important;
             border-color: #06b6d4 !important;
-            color: #0891b2 !important;
+            color: #fff !important;
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 32px; left: 32px;
+            pointer-events: none;
         }
     </style>
 </head>
-<body class="bg-white min-h-screen flex flex-col items-center py-20 px-10">
+<body class="min-h-screen flex flex-col items-center justify-center p-10 select-none">
 
-    <div class="text-center mb-16">
-        <h2 class="text-3xl font-black tracking-tighter mb-2">[ 013 : CURSOR_LAB ]</h2>
-        <p class="text-gray-400 tracking-widest text-sm uppercase">Select a module to override the default pointer.</p>
+    <div id="custom-cursor">[ + ]</div>
+
+    <div id="ui-layer" class="w-full">
+        <div class="text-xs tracking-[0.2em] mb-1 text-gray-500">[ 013 : TYPO_CURSOR ]</div>
+        <div class="text-[10px] tracking-widest uppercase opacity-50">POINTER_OVERRIDE_SYSTEM</div>
     </div>
 
-    <div id="cursor-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+    <div class="text-center mb-12 mt-10 w-full max-w-4xl">
+        <div class="text-cyan-500 text-sm tracking-widest font-bold mb-4 uppercase" id="current-status">CURRENT_POINTER : [ + ]</div>
+        <p class="text-[10px] text-gray-600 tracking-[0.3em] uppercase">Select ASCII configuration for interaction tracking.</p>
+    </div>
+
+    <div id="cursor-grid" class="grid grid-cols-2 md:grid-cols-4 gap-2 w-full max-w-4xl">
         </div>
 
-    <div class="mt-20 p-4 border-t border-b border-gray-100 w-full max-w-4xl flex justify-between items-center">
-        <span id="current-status" class="text-xs font-mono text-gray-500 uppercase tracking-widest">Current: DEFAULT</span>
-        <button onclick="resetCursor()" class="text-[10px] font-bold border border-black px-3 py-1 hover:bg-black hover:text-white transition-colors">RESET SYSTEM</button>
+    <div class="mt-12 p-4 border-t border-gray-800 w-full max-w-4xl flex justify-between items-center">
+        <span class="text-[10px] font-mono text-gray-600 tracking-widest">SYSTEM_READY</span>
+        <button onclick="resetCursor()" class="text-[10px] font-bold border border-gray-700 text-gray-400 px-4 py-2 hover:bg-gray-800 hover:text-white transition-colors cursor-none tracking-widest uppercase">
+            RESTORE_DEFAULT
+        </button>
     </div>
 
     <script>
-        // 사용할 커서 종류 정의 (CSS 표준 커서들)
-        const cursorTypes = [
-            { id: 'crosshair', icon: '┼', desc: 'Precision' },
-            { id: 'wait', icon: '⏳', desc: 'Processing' },
-            { id: 'text', icon: 'Ⅰ', desc: 'Information' },
-            { id: 'move', icon: '✥', desc: 'Coordinate' },
-            { id: 'help', icon: '?', desc: 'Guidance' },
-            { id: 'not-allowed', icon: '⊘', desc: 'Restricted' },
-            { id: 'zoom-in', icon: '🔍', desc: 'Magnify' },
-            { id: 'grab', icon: '✋', desc: 'Interaction' },
-            { id: 'cell', icon: '⊞', desc: 'Selection' },
-            { id: 'copy', icon: '⎘', desc: 'Duplicate' },
-            { id: 'none', icon: '◌', desc: 'Invisible' },
-            { id: 'all-scroll', icon: '☩', desc: 'Navigation' }
+        // 🎯 [핵심] 타이포 & 아스키 컨셉에 맞춘 커서 세트
+        const asciiCursors = [
+            { id: '[ + ]', desc: 'PRECISION_AIM' },
+            { id: '>_', desc: 'CMD_PROMPT' },
+            { id: '{ }', desc: 'DATA_WRAPPER' },
+            { id: '< >', desc: 'NODE_NAVIGATOR' },
+            { id: '///', desc: 'SLASH_DRIFT' },
+            { id: 'X', desc: 'VOID_POINTER' },
+            { id: '---', desc: 'FLAT_LINE' },
+            { id: '?', desc: 'QUERY_STATE' }
         ];
 
         const grid = document.getElementById('cursor-grid');
         const status = document.getElementById('current-status');
+        const customCursor = document.getElementById('custom-cursor');
+
+        // 마우스 이동 추적
+        document.addEventListener('mousemove', (e) => {
+            customCursor.style.left = `${e.clientX}px`;
+            customCursor.style.top = `${e.clientY}px`;
+        });
 
         // 카드 생성 루프
-        cursorTypes.forEach(type => {
+        asciiCursors.forEach((type, index) => {
             const card = document.createElement('div');
-            card.className = 'cursor-card p-8 flex flex-col items-center justify-center cursor-pointer bg-white rounded-sm';
-            // 실제 해당 커서를 카드 자체에도 적용해서 미리보기 효과
-            card.style.cursor = type.id;
+            // 첫 번째 옵션을 기본 활성화 상태로 설정
+            const isActive = index === 0 ? 'active-cursor' : '';
+            
+            card.className = `cursor-card p-6 flex flex-col items-center justify-center rounded-none ${isActive}`;
             
             card.innerHTML = `
-                <span class="text-2xl mb-4 font-mono">${type.icon}</span>
-                <span class="text-[10px] font-bold tracking-widest uppercase">${type.id}</span>
-                <span class="text-[8px] text-gray-400 mt-1 uppercase">${type.desc}</span>
+                <span class="text-xl mb-3 font-bold text-white tracking-widest">${type.id}</span>
+                <span class="text-[9px] text-gray-500 mt-1 uppercase tracking-widest">${type.desc}</span>
             `;
 
-            // 클릭 시 전역 커서 변경
+            // 클릭 시 전역 커서(텍스트) 변경
             card.onclick = () => {
-                // 기존 활성화 클래스 제거
                 document.querySelectorAll('.cursor-card').forEach(c => c.classList.remove('active-cursor'));
                 
-                // 전역(body) 커서 변경
-                document.body.style.cursor = type.id;
+                // 마우스를 따라다니는 아스키 텍스트 변경
+                customCursor.innerText = type.id;
                 
-                // 현재 카드 활성화 표시
                 card.classList.add('active-cursor');
-                status.innerText = `Current: ${type.id.toUpperCase()}`;
+                status.innerText = `CURRENT_POINTER : ${type.id}`;
+
+                // 클릭 효과음 대신 화면 살짝 번쩍이는 효과
+                customCursor.style.color = '#06b6d4';
+                setTimeout(() => customCursor.style.color = '#fff', 150);
             };
+
+            // 그리드 영역 호버 시 임시로 커서 모양 바꿔주기 (미리보기)
+            card.addEventListener('mouseenter', () => {
+                if (!card.classList.contains('active-cursor')) {
+                    customCursor.innerText = type.id;
+                    customCursor.style.color = '#9ca3af'; // 회색으로 미리보기
+                }
+            });
+
+            card.addEventListener('mouseleave', () => {
+                // 원래 선택되어 있던 커서로 복구
+                const activeId = status.innerText.split(' : ')[1];
+                customCursor.innerText = activeId;
+                customCursor.style.color = '#fff';
+            });
 
             grid.appendChild(card);
         });
 
         // 리셋 함수
         function resetCursor() {
-            document.body.style.cursor = 'default';
-            document.querySelectorAll('.cursor-card').forEach(c => c.classList.remove('active-cursor'));
-            status.innerText = 'Current: DEFAULT';
+            const firstCard = grid.firstChild;
+            firstCard.click(); // 첫 번째 기본 옵션 클릭 트리거
         }
     </script>
 </body>
