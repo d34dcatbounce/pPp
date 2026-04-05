@@ -7,50 +7,112 @@
     <style>
         body {
             margin: 0;
-            overflow: hidden; /* 세로 스크롤 방지 */
-            background-color: #050505;
+            overflow: hidden; /* 세로 스크롤 완전 차단 */
+            background-color: #050505; /* 초기 상태: 완전한 어둠 */
             font-family: 'Courier New', Courier, monospace;
+            cursor: none; /* 시스템 커서 숨김 */
+            transition: background-color 3s ease; /* 색상 복원 시 배경색 전환 */
         }
 
-        /* 가로로 길게 늘어지는 트랙 */
+        /* 🎯 아스키 커서 디자인 */
+        #custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            color: #4b5563; /* 초기 어두운 회색 */
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 9999;
+            transform: translate(-50%, -50%); /* 마우스 정중앙 정렬 */
+            transition: color 2s ease, text-shadow 2s ease;
+        }
+
+        /* 가로 스크롤 트랙 */
         #horizontal-track {
             display: flex;
-            align-items: flex-end; /* 건물들이 바닥에 붙도록 */
+            align-items: flex-end; 
             height: 100vh;
-            width: fit-content; /* 내용물만큼 길어짐 */
+            width: fit-content;
             padding-left: 10vw;
-            padding-right: 100vw; /* 마지막 건물 이후 여백 */
+            padding-right: 50vw;
             transition: transform 0.1s ease-out;
             will-change: transform;
         }
 
-        /* 건물의 기본 스타일 */
+        /* 아스키 빌딩 컨테이너 */
         .building {
             flex-shrink: 0;
-            background-color: #1a1a1a;
-            border-left: 1px solid #333;
-            border-right: 1px solid #000;
-            position: relative;
-            margin-right: 2px;
-            /* 창문 패턴 (노이즈) */
-            background-image: radial-gradient(#262626 1px, transparent 1px);
-            background-size: 20px 30px;
+            margin-right: 16px; 
+            color: #262626; /* 초기 상태: 죽어있는 콘크리트 색상 */
+            font-size: 14px;
+            line-height: 14px;
+            letter-spacing: 2px;
+            white-space: pre; 
+            user-select: none;
+            /* 🎯 색상 복원을 위한 트랜지션 설정 */
+            transition: color 3s ease, text-shadow 3s ease;
         }
 
-        /* 🎯 숨겨진 장미 */
+        /* 🎯 [핵심] 색상 복원 상태 (body에 클래스가 추가되면 발동) */
+        body.color-restored {
+            background-color: #020617; /* 깊은 밤하늘 색으로 전환 */
+        }
+        
+        body.color-restored .building {
+            /* JS에서 부여한 --neon-color 변수를 사용해 각 건물마다 다른 빛을 냄 */
+            color: var(--neon-color);
+            text-shadow: 0 0 10px var(--neon-color);
+        }
+
+        body.color-restored #custom-cursor {
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        body.color-restored #ui-layer {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        /* 🎯 디테일해진 아스키 장미 */
         #the-rose {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            cursor: pointer;
+            color: #f43f5e; /* 로즈 핑크 */
+            font-size: 14px;
+            line-height: 12px;
+            text-align: center;
             z-index: 50;
-            filter: drop-shadow(0 0 10px #f43f5e);
-            transition: transform 0.3s ease;
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+            transition: transform 0.3s ease, text-shadow 0.3s ease, filter 2s ease;
+            animation: pulse-rose 2s infinite alternate;
+        }
+
+        /* 마우스를 올릴 때 커질 수 있도록 투명한 클릭 영역 확보 */
+        #the-rose::before {
+            content: '';
+            position: absolute;
+            top: -10px; left: -10px; right: -10px; bottom: -10px;
+            cursor: none;
         }
 
         #the-rose:hover {
+            transform: translateX(-50%) scale(1.2);
+            text-shadow: 0 0 20px rgba(244, 63, 94, 1);
+        }
+
+        /* 세상이 색을 찾으면 장미는 하얗게 타오름 */
+        body.color-restored #the-rose {
+            color: #fff;
+            text-shadow: 0 0 30px #fff, 0 0 60px #f43f5e;
+            animation: none;
             transform: translateX(-50%) scale(1.5);
+        }
+
+        @keyframes pulse-rose {
+            0% { opacity: 0.8; }
+            100% { opacity: 1; text-shadow: 0 0 15px rgba(244, 63, 94, 0.8); }
         }
 
         /* UI 레이어 */
@@ -60,88 +122,128 @@
             color: #4b5563;
             z-index: 100;
             pointer-events: none;
+            text-transform: uppercase;
+            transition: color 3s ease, text-shadow 3s ease;
         }
 
         #scroll-guide {
             position: fixed;
             bottom: 32px; right: 32px;
-            color: #262626;
+            color: #374151;
             font-size: 10px;
             letter-spacing: 0.5em;
             text-transform: uppercase;
+            pointer-events: none;
+            transition: opacity 2s ease;
+        }
+
+        body.color-restored #scroll-guide {
+            opacity: 0; /* 색을 찾으면 안내문구 사라짐 */
         }
     </style>
 </head>
 <body>
 
+    <div id="custom-cursor">[ + ]</div>
+
     <div id="ui-layer">
-        <div class="text-xs tracking-[0.2em] mb-1">[ 025 : CONCRETE_ROSE ]</div>
-        <div class="text-[10px] tracking-widest opacity-50">LOCATION: URBAN_DESERT_09</div>
-        <div class="mt-8 text-gray-200 text-sm tracking-tighter opacity-80">"건물 사이에 피어난 장미"</div>
+        <div class="text-xs tracking-[0.2em] mb-1" id="ui-title">[ 025 : CONCRETE_ROSE ]</div>
+        <div class="text-[10px] tracking-widest opacity-50" id="ui-subtitle">LOCATION: ASCII_URBAN_DESERT</div>
+        <div class="mt-8 text-gray-500 text-sm tracking-tighter opacity-80" id="ui-status">"TXT_OVERRIDE: FIND_THE_ROSE"</div>
     </div>
 
-    <div id="scroll-guide">Use Mouse Wheel to Navigate</div>
+    <div id="scroll-guide">WHEEL_TO_NAVIGATE //</div>
 
     <div id="horizontal-track">
         </div>
 
     <script>
         const track = document.getElementById('horizontal-track');
-        const buildingCount = 150; // 약 150개의 건물을 생성
-        const rosePosition = Math.floor(Math.random() * 100) + 30; // 30번째~130번째 건물 사이 랜덤 위치
+        const customCursor = document.getElementById('custom-cursor');
+        const buildingCount = 120; 
+        const rosePosition = Math.floor(Math.random() * 80) + 20; 
 
-        // 1. 빌딩 숲 생성
+        // 🎯 세상이 되찾을 다채로운 네온 색상 팔레트
+        const neonColors = ['#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#a78bfa', '#e879f9'];
+        const blocks = ['█', '█', '█', '█', '▓', '▒'];
+
         for (let i = 0; i < buildingCount; i++) {
             const b = document.createElement('div');
             b.className = 'building';
             
-            // 건물의 높이와 폭을 랜덤하게 설정 (삭막한 느낌)
-            const h = Math.floor(Math.random() * 60) + 30; // 30vh ~ 90vh
-            const w = Math.floor(Math.random() * 80) + 40; // 40px ~ 120px
-            
-            b.style.height = h + 'vh';
-            b.style.width = w + 'px';
+            const cols = Math.floor(Math.random() * 8) + 4;  
+            const rows = Math.floor(Math.random() * 40) + 10; 
 
-            // 🎯 특정 위치에 장미 숨기기
+            let buildingAscii = "";
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    buildingAscii += blocks[Math.floor(Math.random() * blocks.length)];
+                }
+                buildingAscii += "\n";
+            }
+            
+            b.innerText = buildingAscii;
+
+            // 🎯 각 건물마다 복원될 때 빛날 고유의 색상을 CSS 변수로 미리 숨겨둠
+            const randomColor = neonColors[Math.floor(Math.random() * neonColors.length)];
+            b.style.setProperty('--neon-color', randomColor);
+
+            // 장미 배치
             if (i === rosePosition) {
+                b.style.position = 'relative';
                 const rose = document.createElement('div');
                 rose.id = 'the-rose';
-                // SVG로 장미(하트 응용) 표현
-                rose.innerHTML = `
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#f43f5e">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                    </svg>
-                `;
+                
+                // 🎯 디테일한 다중 줄 아스키 장미 아트
+                rose.innerText = `  _  \n _(_)_\n(_)@(_)\n  (_)\\ \n     | \n     | `;
+                
+                // 장미 클릭 이벤트: 세상의 색깔 복원!
                 rose.onclick = () => {
-                    alert("[ SYSTEM ] 탈출 경로를 발견했습니다.");
-                    window.location.href = 'index.html'; // 메인으로 복귀
+                    document.body.classList.add('color-restored');
+                    
+                    // UI 텍스트 변경
+                    document.getElementById('ui-title').innerText = "[ SYSTEM_RESTORED ]";
+                    document.getElementById('ui-subtitle').innerText = "COLOR_DATA_INJECTED";
+                    document.getElementById('ui-status').innerText = "WORLD_LINE_RECOVERED.";
+                    document.getElementById('ui-status').style.color = "#34d399"; // 초록색 텍스트
+
+                    // 커서 모양 변경
+                    customCursor.innerText = "[ ☼ ]";
                 };
+
+                // 마우스 호버 시 커서 모양 변경
+                rose.addEventListener('mouseenter', () => customCursor.innerText = "< @ >");
+                rose.addEventListener('mouseleave', () => {
+                    if(!document.body.classList.contains('color-restored')) {
+                        customCursor.innerText = "[ + ]";
+                    }
+                });
+                
                 b.appendChild(rose);
-                // 장미가 있는 건물은 틈을 조금 더 벌림
-                b.style.marginRight = '10px';
+                b.style.marginRight = '40px';
+                b.style.marginLeft = '20px';
             }
 
             track.appendChild(b);
         }
 
-        // 2. 🎯 [핵심] 휠 이벤트를 가로 스크롤로 변환
-        let scrollPos = 0;
-        const maxScroll = track.offsetWidth - window.innerWidth;
-
-        window.addEventListener('wheel', (e) => {
-            // 세로 휠 양(deltaY)만큼 가로 위치 이동
-            scrollPos += e.deltaY;
-            
-            // 범위 제한
-            if (scrollPos < 0) scrollPos = 0;
-            // 여기서 maxScroll은 실행 시점에 다시 계산하는 것이 정확함
-            const currentMax = track.scrollWidth - window.innerWidth;
-            if (scrollPos > currentMax) scrollPos = currentMax;
-
-            // 트랙 이동
-            track.style.transform = `translateX(-${scrollPos}px)`;
+        // 🎯 커서 마우스 추적 로직
+        document.addEventListener('mousemove', (e) => {
+            customCursor.style.left = `${e.clientX}px`;
+            customCursor.style.top = `${e.clientY}px`;
         });
 
+        // 휠 가로 스크롤 매핑
+        let scrollPos = 0;
+        window.addEventListener('wheel', (e) => {
+            scrollPos += e.deltaY * 1.5; 
+            if (scrollPos < 0) scrollPos = 0;
+            
+            const maxScroll = track.scrollWidth - window.innerWidth;
+            if (scrollPos > maxScroll) scrollPos = maxScroll;
+
+            track.style.transform = `translateX(-${scrollPos}px)`;
+        });
     </script>
 </body>
 </html>
