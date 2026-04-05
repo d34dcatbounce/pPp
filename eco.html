@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Ecosystem | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 완전한 어둠 */
+            font-family: 'Courier New', Courier, monospace;
+            cursor: none; /* 시스템 커서 숨김 */
+        }
+
+        /* 🎯 아스키 조준경 */
+        #custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            color: #fff;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+        }
+
+        /* 텍스트 그리드를 렌더링할 태그 */
+        #grid-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: pre; /* 띄어쓰기 및 줄바꿈 유지 */
+            font-size: 10px; /* 촘촘한 밀도 */
+            line-height: 10px;
+            letter-spacing: 0px;
+            color: #1f2937; /* 죽은 세포 색상 */
+        }
+
+        /* 살아있는 세포 (1) 스킬 */
+        .alive {
+            color: #d1d5db; /* 살아있는 세포 색상 */
+            font-weight: bold;
+            text-shadow: 0 0 3px rgba(209, 213, 219, 0.5);
+        }
+        
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 32px; left: 32px;
+            color: #4b5563;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* 버튼 컨테이너 (클릭 가능 영역) */
+        #controls {
+            position: fixed;
+            bottom: 32px; right: 32px;
+            z-index: 150;
+            display: flex;
+            gap: 8px;
+        }
+        .ctrl-btn {
+            border: 1px solid #374151;
+            background-color: transparent;
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            padding: 4px 8px;
+            cursor: none; /* 버튼 위에서도 커서 숨김 */
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+        }
+        .ctrl-btn:hover {
+            border-color: #d1d5db;
+            color: #d1d5db;
+            background-color: #1f2937;
+        }
+    </style>
+</head>
+<body class="select-none">
+
+    <div id="custom-cursor">[ + ]</div>
+
+    <div id="ui-layer">
+        <div class="text-xs tracking-[0.2em] mb-1">[ 099 : CELLULAR_AUTOMATA ]</div>
+        <div class="text-[10px] tracking-widest opacity-50 uppercase">BEHAVIORAL_LOGIC: CONWAY_GAME_OF_LIFE</div>
+        <div id="status-text" class="text-cyan-500 text-xs mt-6 font-bold tracking-tighter">ECOSYSTEM: PAUSED</div>
+    </div>
+
+    <div id="controls">
+        <button id="run-btn" class="ctrl-btn">RUN_PROG</button>
+        <button id="seed-btn" class="ctrl-btn">SEED_RANDOM</button>
+        <button id="clear-btn" class="ctrl-btn">CLEAR_DATA</button>
+    </div>
+
+    <pre id="grid-container"></pre>
+
+    <div class="absolute bottom-8 w-full text-center text-gray-700 font-mono text-[10px] tracking-widest z-40 pointer-events-none uppercase">
+        Drag to inject data "1". Press RUN to start simulation.
+    </div>
+
+    <script>
+        const container = document.getElementById('grid-container');
+        const customCursor = document.getElementById('custom-cursor');
+        const runBtn = document.getElementById('run-btn');
+        const statusText = document.getElementById('status-text');
+
+        // 그리드 설정 (촘촘한 밀도)
+        const charW = 10;
+        const charH = 10;
+        let cols, rows;
+        let grid = []; // 현재 세대
+        let nextGrid = []; // 다음 세대 저장용 buffer
+
+        letisRunning = false;
+        let gameInterval;
+        let isMouseDown = false;
+
+        function initGrid() {
+            cols = Math.floor(window.innerWidth / charW);
+            rows = Math.floor(window.innerHeight / charH);
+            grid = new Array(rows).fill(0).map(() => new Array(cols).fill(0));
+            nextGrid = new Array(rows).fill(0).map(() => new Array(cols).fill(0));
+            drawGrid();
+        }
+
+        // 🎯 1. 화면 그리기 (성능을 위해 스냅샷 방식으로 변경)
+        function drawGrid() {
+            let output = "";
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (grid[r][c] === 1) {
+                        // 살아있는 세포는 .alive 클래스로 감싸서 빛나게 함
+                        output += '<span class="alive">1</span>';
+                    } else {
+                        // 죽은 세포는 마침표
+                        output += '.';
+                    }
+                }
+                output += '\n'; // 줄바꿈
+            }
+            container.innerHTML = output;
+        }
+
+        // 🎯 2. [핵심] 수학적 생존 규칙 (Conway's Game of Life)
+        function updateGeneration() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    // 이웃하는 살아있는 세포 수 계산
+                    const neighbors = countNeighbors(r, c);
+                    const state = grid[r][c];
+
+                    // 규칙 적용
+                    if (state === 1 && (neighbors < 2 || neighbors > 3)) {
+                        nextGrid[r][c] = 0; // 고독사 또는 과로사
+                    } else if (state === 0 && neighbors === 3) {
+                        nextGrid[r][c] = 1; // 탄생 (프랙탈적 증식의 핵심)
+                    } else {
+                        nextGrid[r][c] = state; // 상태 유지
+                    }
+                }
+            }
+
+            // 다음 세대를 현재 세대로 복사 (swap buffer)
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    grid[r][c] = nextGrid[r][c];
+                }
+            }
+
+            drawGrid();
+        }
+
+        // 이웃 세포 수 계산 (화면 경계를 둥글게 연결 - 무한 루프 우주)
+        function countNeighbors(r, c) {
+            let sum = 0;
+            for (let i = -1; i < 2; i++) {
+                for (let j = -1; j < 2; j++) {
+                    if (i === 0 && j === 0) continue; // 자기 자신 제외
+                    
+                    const col = (c + i + cols) % cols; // 경계 처리
+                    const row = (r + j + rows) % rows; // 경계 처리
+                    sum += grid[row][col];
+                }
+            }
+            return sum;
+        }
+
+        // 🎯 3. 마우스 인터랙션 (데이터 주입)
+        document.addEventListener('mousemove', (e) => {
+            // 커서 이동
+            customCursor.style.left = `${e.clientX}px`;
+            customCursor.style.top = `${e.clientY}px`;
+            
+            // 드래그 중일 때 데이터 "1" 주입
+            if (isMouseDown) {
+                injectData(e.clientX, e.clientY);
+            }
+        });
+
+        // 꾹 누르고 있을 때 드래그 시작
+        document.addEventListener('mousedown', (e) => {
+            // 버튼 클릭 시에는 주입 방지
+            if (e.target.tagName !== 'BUTTON') {
+                isMouseDown = true;
+                injectData(e.clientX, e.clientY); // 클릭한 순간에도 주입
+                
+                customCursor.innerText = '[ 1 ]'; // 주입 모드 커서
+                customCursor.style.color = '#fff';
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+            customCursor.innerText = '[ + ]';
+            customCursor.style.color = '#fff';
+        });
+
+        // 실제 그리드 좌표에 1 주입
+        function injectData(x, y) {
+            const c = Math.floor(x / charW);
+            const r = Math.floor(y / charH);
+            if (r >= 0 && r < rows && c >= 0 && c < cols) {
+                grid[r][c] = 1;
+                // 드래그 즉시 그리기 (반응성 강화)
+                if(!isRunning) drawGrid(); 
+            }
+        }
+
+        // 컨트롤 버튼 로직
+        runBtn.addEventListener('click', () => {
+            if (isRunning) {
+                clearInterval(gameInterval);
+                runBtn.innerText = 'RUN_PROG';
+                statusText.innerText = 'ECOSYSTEM: PAUSED';
+                statusText.style.color = '#4b5563';
+            } else {
+                // 1초에 약 10세대씩 진화시킴
+                gameInterval = setInterval(updateGeneration, 100);
+                runBtn.innerText = 'HALT_PROG';
+                statusText.innerText = 'ECOSYSTEM: ACTIVE_EVOLVING';
+                statusText.style.color = '#06b6d4';
+            }
+            isRunning = !isRunning;
+        });
+
+        document.getElementById('seed-btn').addEventListener('click', () => {
+            // 랜덤하게 화면의 15% 정도에 1 심기 (프랙탈 패턴 발생 유도)
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    grid[r][c] = Math.random() < 0.15 ? 1 : 0;
+                }
+            }
+            drawGrid();
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            grid = new Array(rows).fill(0).map(() => new Array(cols).fill(0));
+            drawGrid();
+            if (isRunning) runBtn.click(); // 실행 중이면 정지
+        });
+
+        window.addEventListener('resize', initGrid);
+        initGrid();
+
+    </script>
+</body>
+</html>
