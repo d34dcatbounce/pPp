@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Typo Fracture | DFA Archive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505; /* 완전한 어둠 */
+            font-family: 'Courier New', Courier, monospace;
+            cursor: none; /* 시스템 커서 숨김 */
+        }
+
+        #main-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 아스키 커서 (조준경) */
+        #custom-cursor {
+            position: fixed;
+            pointer-events: none;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            /* 커서도 차갑고 건조하게, 빛 번짐 최소화 */
+            text-shadow: 0 0 4px rgba(255,255,255,0.5); 
+        }
+
+        /* UI 레이어 */
+        #ui-layer {
+            position: absolute;
+            top: 32px; left: 32px;
+            color: #4b5563;
+            pointer-events: none;
+            z-index: 100;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body class="select-none">
+
+    <div id="custom-cursor">[ + ]</div>
+
+    <div id="ui-layer">
+        <div class="text-xs tracking-[0.2em] mb-1">[ 044 : TYPO_FRACTURE ]</div>
+        <div class="text-[10px] tracking-widest opacity-50">RESOLUTION_DECAY: QUAD-TREE</div>
+        <div class="mt-8 text-gray-500 text-sm tracking-tighter opacity-80" id="status-text">"SCRATCH TO REVEAL DENSITY"</div>
+    </div>
+
+    <div class="absolute bottom-8 w-full text-center text-gray-600 font-mono text-[10px] tracking-widest z-40 pointer-events-none uppercase">
+        Move cursor over the structural blocks to fracture them into micro-typography.
+    </div>
+
+    <canvas id="main-canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        const customCursor = document.getElementById('custom-cursor');
+
+        let width, height;
+        let blocks = [];
+        let textImageData;
+
+        const charSet = ['T', 'Y', 'P', 'O', 'G', 'R', 'A', 'P', 'H', 'Y', '0', '1', '+', '-'];
+        
+        const MAX_SIZE = 128; 
+        const MIN_SIZE = 4;   
+        const MOUSE_RADIUS = 60; 
+
+        let mouse = { x: -1000, y: -1000 };
+
+        // 기준 텍스트 스캔
+        function setupBaseText() {
+            const offCanvas = document.createElement('canvas');
+            const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+            offCanvas.width = width;
+            offCanvas.height = height;
+
+            const text = "TYPOGRAPHY";
+            offCtx.fillStyle = "white";
+            offCtx.textAlign = "center";
+            offCtx.textBaseline = "middle";
+            offCtx.font = `900 ${Math.floor(width * 0.12)}px 'Courier New', monospace`;
+            offCtx.fillText(text, width / 2, height / 2);
+
+            textImageData = offCtx.getImageData(0, 0, width, height).data;
+        }
+
+        function hasTextInArea(x, y, size) {
+            const step = Math.max(1, Math.floor(size / 8));
+            for (let j = Math.floor(y); j < y + size; j += step) {
+                for (let i = Math.floor(x); i < x + size; i += step) {
+                    if (i >= 0 && i < width && j >= 0 && j < height) {
+                        const alpha = textImageData[(j * width + i) * 4 + 3];
+                        if (alpha > 128) return true; 
+                    }
+                }
+            }
+            return false;
+        }
+
+        // 타이포 블록 클래스
+        class TypoBlock {
+            constructor(x, y, size) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.char = charSet[Math.floor(Math.random() * charSet.length)];
+                
+                // 🎯 [핵심 수정] 청록색 대신 무채색 해상도 스케일 적용
+                if (this.size >= 64) {
+                    this.color = '#1f2937'; // 거의 어둠에 묻히는 아주 어두운 회색
+                    this.glow = 0;
+                } else if (this.size >= 16) {
+                    this.color = '#6b7280'; // 중간 형태의 회색
+                    this.glow = 0;
+                } else if (this.size >= 8) {
+                    this.color = '#d1d5db'; // 밝은 회색
+                    this.glow = 0;
+                } else {
+                    this.color = '#ffffff'; // 최소 단위로 쪼개졌을 때 날카로운 순백색
+                    this.glow = 1; // 빛 번짐을 최소화하여 텍스트의 형태(가독성)를 날카롭게 살림
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                
+                if (this.glow > 0) {
+                    ctx.shadowBlur = this.glow;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+
+                ctx.font = `bold ${this.size * 0.9}px 'Courier New', monospace`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(this.char, this.x + this.size / 2, this.y + this.size / 2);
+                ctx.shadowBlur = 0; 
+            }
+        }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            
+            setupBaseText();
+            blocks = [];
+
+            for (let y = 0; y < height; y += MAX_SIZE) {
+                for (let x = 0; x < width; x += MAX_SIZE) {
+                    if (hasTextInArea(x, y, MAX_SIZE)) {
+                        blocks.push(new TypoBlock(x, y, MAX_SIZE));
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = blocks.length - 1; i >= 0; i--) {
+                let b = blocks[i];
+                b.draw();
+
+                let cx = b.x + b.size / 2;
+                let cy = b.y + b.size / 2;
+                let dist = Math.hypot(cx - mouse.x, cy - mouse.y);
+
+                if (dist < MOUSE_RADIUS && b.size > MIN_SIZE) {
+                    let half = b.size / 2;
+                    blocks.splice(i, 1); 
+
+                    const children = [
+                        { x: b.x, y: b.y },
+                        { x: b.x + half, y: b.y },
+                        { x: b.x, y: b.y + half },
+                        { x: b.x + half, y: b.y + half }
+                    ];
+
+                    children.forEach(child => {
+                        if (hasTextInArea(child.x, child.y, half)) {
+                            blocks.push(new TypoBlock(child.x, child.y, half));
+                        }
+                    });
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            
+            customCursor.style.left = `${mouse.x}px`;
+            customCursor.style.top = `${mouse.y}px`;
+        });
+
+        document.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+
+        window.addEventListener('resize', () => {
+            init();
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
