@@ -7,8 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #ffffff;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
+            /* 🎯 [수정됨] 내부 모듈과 완벽하게 동일한 완전한 어둠 */
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace; /* 터미널 폰트로 통일 */
+            cursor: crosshair; /* 탐색하는 느낌의 십자선 커서 */
         }
         
         /* 픽셀의 부드러운 트랜지션 */
@@ -22,38 +24,58 @@
             visibility: visible;
             transform: translate(15px, -50%);
         }
+
+        /* 🎯 [추가됨] 빈 칸(데이터 없음)일 때의 노이즈 패턴 */
+        .empty-pixel {
+            background-image: radial-gradient(#1f2937 1px, transparent 1px);
+            background-size: 4px 4px;
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen relative overflow-hidden bg-white text-gray-900">
+<body class="flex items-center justify-center min-h-screen relative overflow-hidden text-gray-300 select-none">
+
+    <div class="absolute top-12 left-12 text-gray-500 text-xs tracking-[0.2em] pointer-events-none">
+        [ DFA_OFFICIAL_ARCHIVE ]<br>
+        SYSTEM_STATUS: <span class="text-cyan-600 font-bold">ONLINE</span><br>
+        RECOVERED_FRAGMENTS: 18 / 64
+    </div>
 
     <main class="relative z-10 perspective-1000">
-        <div id="pixel-grid" class="grid grid-cols-8 w-[600px] h-[600px] bg-gray-100 shadow-2xl relative">
-            </div>
+        <div id="pixel-grid" class="grid grid-cols-8 w-[600px] h-[600px] bg-[#0a0a0a] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative border border-gray-800">
+        </div>
     </main>
+
+    <div class="absolute bottom-12 text-center text-gray-600 font-mono text-[10px] tracking-[0.3em] uppercase pointer-events-none w-full">
+        Select a sector to access classified typography data.
+    </div>
 
    <script>
         const gridContainer = document.getElementById('pixel-grid');
-        const totalPixels = 64; // 8x8 그리드
+        const totalPixels = 64; 
         const hoverColor = '#06b6d4'; 
 
-        // 파일 디렉토리에 맞게 1~13번까지 모든 모듈 연결
+        // 🎯 디렉토리에 있는 모든 18개 파일 연결 및 이름 정비 완료
         const moduleMap = {
-            1: { file: 'circle.html', title: '077 : PERFECT_CIRCLE' },
-            2: { file: 'cursor.html', title: '013 : CURSOR_LAB' },
-            3: { file: 'liquid.html', title: '017 : LIQUID_LAB' },
-            4: { file: 'peeking.html', title: '099 : THE_KEYHOLE' },
-            5: { file: 'punching.html', title: '033 : PUNCHING_LAB' },
-            6: { file: 'rain.html', title: '044 : TYPOGRAPHIC_RAIN' },
-            7: { file: 'text.html', title: '021 : TYPOGRAPHY_LAB' },
-            8: { file: 'ascii.html', title: '088 : ASCII_CURSOR' },
-            9: { file: 'capture.html', title: '056 : NOISE_ERASER' },
-            10: { file: 'evasion.html', title: '007 : EVASION_FIELD' },
-            11: { file: 'magam.html', title: '061 : DEADLINE_PRESSURE' },
-            12: { file: 'nested.html', title: '011 : NESTED_SYSTEM' },
-            13: { file: 'particle.html', title: '019 : DISPERSION_FIELD' }
+            1: { file: 'ascii.html', title: '088 : ASCII_CURSOR' },
+            2: { file: 'capture.html', title: '056 : DATA_RECOVERY' },
+            3: { file: 'circle.html', title: '077 : ASCII_CIRCLE' },
+            4: { file: 'cursor.html', title: '013 : TYPO_CURSOR' },
+            5: { file: 'evasion.html', title: '007 : EVASION_FIELD' },
+            6: { file: 'liquid.html', title: '016 : LIQUID_TYPO' },
+            7: { file: 'magam.html', title: '061 : DEADLINE_PRESSURE' },
+            8: { file: 'nested.html', title: '011 : NESTED_SYSTEM' },
+            9: { file: 'particle.html', title: '019 : DISPERSION_FIELD' },
+            10: { file: 'peeking.html', title: '099 : THE_KEYHOLE' },
+            11: { file: 'punching.html', title: '033 : CENSOR_PUNCH' },
+            12: { file: 'rain.html', title: '044 : TYPOGRAPHIC_RAIN' },
+            13: { file: 'rose.html', title: '025 : CONCRETE_ROSE' },
+            14: { file: 'sonar.html', title: '031 : DATA_SCANNER' },
+            15: { file: 'space.html', title: '000 : VOID_SPACE' },
+            16: { file: 'tempo.html', title: '060 : TEMPO_REGULATOR' },
+            17: { file: 'text.html', title: '021 : TYPOGRAPHY_LAB' },
+            18: { file: 'topo.html', title: '089 : ASCII_TOPOGRAPHY' }
         };
 
-        // 페이지 이동을 처리하는 함수
         function navigateToPage(pixelIndex) {
             if (moduleMap[pixelIndex]) {
                 window.location.href = `./${moduleMap[pixelIndex].file}`;
@@ -62,49 +84,55 @@
             }
         }
 
-        // 64개의 픽셀 생성 루프
+        // 64개의 픽셀 생성
         for (let i = 0; i < totalPixels; i++) {
             const pixelIndex = i + 1;
+            const hasModule = moduleMap[pixelIndex];
             
-            // 배경 회색조 랜덤 생성
-            const grayIntensity = Math.floor(Math.random() * 35) + 210;
-            const baseBgColor = `rgb(${grayIntensity}, ${grayIntensity}, ${grayIntensity})`;
+            // 🎯 [수정됨] 다크 테마에 맞춘 매우 어두운 회색조 블록
+            const grayIntensity = Math.floor(Math.random() * 15) + 15; // 15 ~ 30 사이의 어두운 값
+            const baseBgColor = hasModule ? `rgb(${grayIntensity}, ${grayIntensity}, ${grayIntensity})` : '#050505';
 
             const pixel = document.createElement('div');
-            pixel.className = 'pixel relative block w-full h-full cursor-pointer z-10 border-[0.5px] border-white/40';
+            
+            // 데이터가 없는 빈 칸은 비어있는 느낌(empty-pixel)을 줌
+            pixel.className = `pixel relative block w-full h-full cursor-pointer z-10 border-[0.5px] border-gray-800 ${!hasModule ? 'empty-pixel' : ''}`;
             pixel.style.backgroundColor = baseBgColor;
 
-            // 툴팁 내용 설정
+            // 툴팁 설정
             const tooltip = document.createElement('div');
-            tooltip.className = 'tooltip absolute left-full top-1/2 -translate-y-1/2 px-4 py-2 bg-gray-900 text-cyan-400 text-xs tracking-widest whitespace-nowrap opacity-0 invisible transition-all duration-300 pointer-events-none shadow-lg border border-cyan-900 z-50';
+            tooltip.className = 'tooltip absolute left-full top-1/2 -translate-y-1/2 px-4 py-2 bg-black text-cyan-400 text-xs tracking-widest whitespace-nowrap opacity-0 invisible transition-all duration-300 pointer-events-none shadow-2xl border border-cyan-900 z-50';
             
-            const displayTitle = moduleMap[pixelIndex] ? moduleMap[pixelIndex].title : `PROJECT_FRAGMENT_${String(pixelIndex).padStart(2, '0')}`;
-            tooltip.innerHTML = `${displayTitle} <br><span class="text-[9px] text-gray-400 mt-1 block">VIEW DETAIL</span>`;
+            const displayTitle = hasModule ? moduleMap[pixelIndex].title : `DATA_CORRUPTED_${String(pixelIndex).padStart(2, '0')}`;
+            tooltip.innerHTML = `${displayTitle} <br><span class="text-[9px] text-gray-500 mt-1 block">${hasModule ? 'EXECUTE_MODULE' : 'ACCESS_DENIED'}</span>`;
 
-            // 마우스 호버(올렸을 때) 이벤트
+            // 마우스 호버 이벤트
             pixel.addEventListener('mouseenter', function() {
-                this.style.backgroundColor = moduleMap[pixelIndex] ? hoverColor : '#9ca3af';
-                this.style.transform = 'scale(1.08)';
-                this.style.zIndex = '50';
-                this.style.boxShadow = moduleMap[pixelIndex] ? '0 0 20px rgba(6, 182, 212, 0.4)' : 'none';
-                this.style.borderColor = 'transparent';
+                if (hasModule) {
+                    this.style.backgroundColor = hoverColor;
+                    this.style.transform = 'scale(1.08)';
+                    this.style.zIndex = '50';
+                    this.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.4)';
+                    this.style.borderColor = 'transparent';
+                } else {
+                    this.style.backgroundColor = '#1f2937'; // 빈 칸은 호버 시 옅은 회색만
+                }
             });
 
-            // 마우스 리브(벗어났을 때) 이벤트
+            // 마우스 리브 이벤트
             pixel.addEventListener('mouseleave', function() {
                 this.style.backgroundColor = baseBgColor;
                 this.style.transform = 'scale(1)';
                 this.style.zIndex = '10';
                 this.style.boxShadow = 'none';
-                this.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                this.style.borderColor = '#1f2937';
             });
 
-            // 클릭 시 호출 함수 실행
+            // 클릭 이벤트
             pixel.addEventListener('click', function() {
                 navigateToPage(pixelIndex);
             });
 
-            // DOM에 추가
             pixel.appendChild(tooltip);
             gridContainer.appendChild(pixel);
         }
